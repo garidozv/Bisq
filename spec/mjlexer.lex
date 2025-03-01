@@ -71,8 +71,8 @@ import java_cup.runtime.Symbol;
 
 // Operators
 
-"+" 		{ return new_symbol(sym.PLUS, 	yytext()); }
-"-" 		{ return new_symbol(sym.MINUS, 	yytext()); }
+"+" 		{ return new_symbol(sym.ADD, 	yytext()); }
+"-" 		{ return new_symbol(sym.SUB, 	yytext()); }
 "*" 		{ return new_symbol(sym.MUL, 	yytext()); }
 "/" 		{ return new_symbol(sym.DIV, 	yytext()); }
 "%" 		{ return new_symbol(sym.MOD, 	yytext()); }
@@ -110,11 +110,8 @@ import java_cup.runtime.Symbol;
 
 "'"."'" 						{ return new_symbol(sym.CHAR, Character.valueOf(yytext().charAt(1))); }
 ("bool"|"false") 				{ return new_symbol(sym.BOOL, Boolean.valueOf(yytext())); }
-\d+  							{ return new_symbol(sym.NUMBER, Integer.valueOf(yytext())); }
-[:letter:]([:letter:]|\d|_)* 	{ return new_symbol(sym.IDENT, yytext()); }
-
-//[0-9]+  { return new_symbol(sym.NUMBER, new Integer (yytext())); }
-//([a-z]|[A-Z])[a-z|A-Z|0-9|_]* 	{return new_symbol (sym.IDENT, yytext()); }
+[:digit:]+  							{ return new_symbol(sym.NUMBER, Integer.valueOf(yytext())); }
+[:letter:]([:letter:]|[:digit:]|_)* 	{ return new_symbol(sym.IDENT, yytext()); }
 
 
 // Error

@@ -1,0 +1,119 @@
+package rs.ac.bg.etf.pp1;
+
+import java_cup.runtime.*;
+import org.apache.log4j.*;
+import rs.ac.bg.etf.pp1.ast.*;
+
+
+parser code {:
+	
+	boolean errorDetected = false;
+	Logger log = Logger.getLogger(getClass());
+   
+   	// Redefined error-reporting methods
+     
+    public void report_fatal_error(String message, Object info) throws java.lang.Exception {
+      done_parsing();
+      report_error(message, info);
+    }
+  
+    public void syntax_error(Symbol cur_token) {
+        report_error("\nSintaksna greska", cur_token);
+    }
+  
+    public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
+        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+    }
+
+    public void report_error(String message, Object info) {
+    	errorDetected = true;
+    	report_info(message, info);
+    }
+    
+    public void report_info(String message, Object info) {
+    	StringBuilder msg = new StringBuilder(message); 
+    	if (info instanceof Symbol)
+            msg.append (" na liniji ").append(((Symbol)info).left);
+        log.info(msg.toString());
+    }
+    
+:}
+
+scan with {:
+	Symbol s = this.getScanner().next_token();
+	if (s != null && s.value != null) 
+		log.info(s.toString() + " " + s.value.toString());
+	return s;
+:}
+
+terminal  
+	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
+	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, BOOL, LE, CONST, CHAR,
+	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
+	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL;
+	
+terminal String IDENT;
+terminal Integer NUMBER;
+
+nonterminal 
+	TestingRule,
+	Setop, Mulop, Addop, Relop, Assignop, Label,
+	Program, Expr, Designator, DesignatorSuffix;
+	
+
+Program ::= (Program) PROGRAM IDENT TestingRule;
+
+TestingRule ::= (TestingRule1) Expr TestingRule
+				|
+				(TestingRule2) Designator TestingRule
+				|
+				(TestingRule3)
+				;
+
+Expr ::= NUMBER;
+
+/* Designator = ident {ʺ.ʺ ident | ʺ[ʺ Expr ʺ]ʺ}. */
+
+Designator ::= 	(Designator) IDENT DesignatorSuffix;
+				
+DesignatorSuffix ::= 	(DesignatorSuffix_FieldAccess) DesignatorSuffix DOT IDENT
+						|
+					 	(DesignatorSuffix_ArrayAccess) DesignatorSuffix LBRACK Expr RBRACK
+					 	|
+					 	(DesignatorSuffix_Epsilon) /* epsilon */
+					 	;
+				
+Label ::= 	(Label) IDENT
+			;
+				
+Assignop ::=	(Assignop) EQUAL
+				;
+
+Relop ::=	(Relop_Equal) EQ
+			|
+			(Relop_NotEqual) NE
+			|
+			(Relop_Greater) GT
+			|
+			(Relop_GreaterOrEqual) GE
+			|
+			(Relop_Lesser) LT
+			|
+			(Relop_LesserOrEqual) LE
+			;
+			
+Addop ::=	(Addop_Add) ADD
+			|
+			(Addop_Sub) SUB
+			;
+
+Mulop ::= 	(Mulop_Mul) MUL
+			|
+			(Mulop_Div) DIV
+			|
+			(Mulop_Mod) MOD
+			;
+
+Setop ::= 	(Setop) UNION
+			;
+

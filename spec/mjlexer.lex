@@ -109,7 +109,7 @@ import java_cup.runtime.Symbol;
 // Tokens
 
 "'"."'" 						{ return new_symbol(sym.CHAR, Character.valueOf(yytext().charAt(1))); }
-("bool"|"false") 				{ return new_symbol(sym.BOOL, Boolean.valueOf(yytext())); }
+("true"|"false") 				{ return new_symbol(sym.BOOL, Boolean.valueOf(yytext())); }
 [:digit:]+  							{ return new_symbol(sym.NUMBER, Integer.valueOf(yytext())); }
 [:letter:]([:letter:]|[:digit:]|_)* 	{ return new_symbol(sym.IDENT, yytext()); }
 

@@ -32,8 +32,10 @@ parser code {:
     
     public void report_info(String message, Object info) {
     	StringBuilder msg = new StringBuilder(message); 
-    	if (info instanceof Symbol)
-            msg.append (" na liniji ").append(((Symbol)info).left);
+    	if (info instanceof Symbol) {
+    		msg.append (" na liniji ").append(((Symbol)info).left);
+    		msg.append (" na simbolu ").append(((Symbol)info).sym);
+    	}
         log.info(msg.toString());
     }
     
@@ -48,40 +50,235 @@ scan with {:
 
 terminal  
 	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
-	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, BOOL, LE, CONST, CHAR,
+	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, LE, CONST,
 	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
 	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL;
 	
 terminal String IDENT;
 terminal Integer NUMBER;
+terminal Character CHAR;
+terminal Boolean BOOL;
 
 nonterminal 
-	TestingRule,
-	Setop, Mulop, Addop, Relop, Assignop, Label,
-	Program, Expr, Designator, DesignatorSuffix;
+	Setop, Mulop, Relop, Addop, Assignop, Label, Designator, DesignatorSuffix,
+	Factor, Term, Expr, ExprList, CondFact, CondTerm, Condition, 
+	ActPars, CallPars, DesignatorStatement, Statement, Type, FormPars,
+	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
+	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
+	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
+	Program, ProgramDeclList;
 	
+precedence left ELSE;
 
-Program ::= (Program) PROGRAM IDENT TestingRule;
+Program ::= (Program) PROGRAM IDENT ProgramDeclList LBRACE MethodDeclList RBRACE
+			;
 
-TestingRule ::= (TestingRule1) Expr TestingRule
+ProgramDeclList ::=	(ProgramDeclList_ConstDecl) ConstDecl ProgramDeclList
+					|
+					(ProgramDeclList_VarDecl) VarDecl ProgramDeclList
+					|
+					(ProgramDeclList_ClassDecl) ClassDecl ProgramDeclList
+					|
+					(ProgramDeclList_InterfaceDecl) InterfaceDecl ProgramDeclList
+					|
+					(ProgramDeclList_Epsilon)
+					;
+
+ConstAssign ::=	(ConstAssign_Num) IDENT EQUAL NUMBER
 				|
-				(TestingRule2) Designator TestingRule
+				(ConstAssign_Char) IDENT EQUAL CHAR
 				|
-				(TestingRule3)
+				(ConstAssign_Bool) IDENT EQUAL BOOL
 				;
 
-Expr ::= NUMBER;
+ConstDeclNoType ::=	(ConstDeclNoType_ConstAssing) ConstDeclNoType COMMA ConstAssign
+					|
+					(ConstDeclNoType_Epsilon)
+					;
 
-/* Designator = ident {ʺ.ʺ ident | ʺ[ʺ Expr ʺ]ʺ}. */
+ConstDecl ::= 	(ConstDecl) CONST Type ConstAssign ConstDeclNoType SEMI
+				;
 
-Designator ::= 	(Designator) IDENT DesignatorSuffix;
+VarName ::=	(VarName_NonArray) IDENT 
+			|
+			(VarName_Array) IDENT LBRACK RBRACK
+			;
+
+VarDeclNoType ::= 	(VarDeclNoType_VarName) VarDeclNoType COMMA VarName
+					|
+					(VarDeclNoType_Epsilon)
+					;
+
+VarDecl ::=	(VarDecl) Type VarName VarDeclNoType SEMI
+			;
+
+MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDecl MethodDeclList
+					|
+					(MethodDeclList_Epsilon)
+					;
+
+ClassBody ::=	(ClassBody_Fields) VarDeclList
+				|
+				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE  
+				;
+
+ClassDecl ::= 	(ClassDecl_Derived) CLASS IDENT EXTENDS Type LBRACE ClassBody RBRACE
+				|
+				(ClassDecl_NonDerived) CLASS IDENT LBRACE ClassBody RBRACE
+				;
+
+InterfaceBody ::=	(InterfaceBody_MethodDecl) MethodDecl InterfaceBody
+					|
+					(InterfaceBody_MethodSignature) MethodSignature SEMI InterfaceBody
+					|
+					(InterfaceBody_Epsilon)
+					; 
+
+InterfaceDecl ::=	(InterfaceDecl) INTERFACE IDENT LBRACE InterfaceBody RBRACE
+					;
+
+MethodSignature ::=	(MethodSignature_NoPars) Type IDENT LPAREN RPAREN
+					|
+					(MethodSignature_Pars) Type IDENT LPAREN FormPars RPAREN
+					|
+					(MethodSignature_VoidNoPars) VOID IDENT LPAREN RPAREN
+					|
+					(MethodSignature_VoidPars) VOID IDENT LPAREN FormPars RPAREN
+					;
+
+StatementList ::= 	(StatementList_Statement) Statement StatementList
+					|
+					(StatementList_Epsilon)
+					;
 				
+VarDeclList ::=	(VarDeclList_VarDecl) VarDecl VarDeclList
+				|
+				(VarDeclList_Epsilon)
+				;
+				
+MethodDecl ::=	(MethodDecl) MethodSignature VarDeclList LBRACE StatementList RBRACE
+				;
+
+FormPars ::= 	(FormPars_Single) Type VarName
+				|
+				(FormPars_Multiple) FormPars COMMA Type VarName
+				;
+
+Type ::=	(Type) IDENT
+			;
+
+Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
+				|
+				(Statement_If) IF LPAREN Condition RPAREN Statement
+				|
+				(Statement_IfElse) IF LPAREN Condition RPAREN Statement ELSE Statement
+				|
+				(Statement_Break) BREAK SEMI
+				|
+				(Statement_Continue) CONTINUE SEMI
+				|
+				(Statement_ReturnVoid) RETURN SEMI
+				|
+				(Statement_Return) RETURN Expr SEMI
+				|
+				(Statement_Read) READ LPAREN Designator RPAREN SEMI
+				|
+				(Statement_Print) PRINT LPAREN Expr RPAREN SEMI
+				|
+				(Statement_PrintNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
+				|
+				(Statement_DoWhileEmpty) DO Statement WHILE LPAREN RPAREN SEMI
+				|
+				(Statement_DoWhileCondition) DO Statement WHILE LPAREN Condition RPAREN SEMI
+				|
+				(Statement_DoWhileConditionWithDesignatorStatement) DO Statement WHILE LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
+				|
+				(Statement_Block) LBRACE StatementList RBRACE
+				;
+				
+
+DesignatorStatement ::= (DesignatorStatement_AssignExpr) Designator Assignop Expr
+						|
+						(DesignatorStatement_Call) Designator CallPars
+						|
+						(DesignatorStatement_Inc) Designator INC
+						|
+						(DesignatorStatement_Dec) Designator DEC
+						|
+						(DesignatorStatement_AssignSetop) Designator Assignop Designator Setop Designator
+						;
+
+CallPars ::=	(CallPars_Pars) LPAREN ActPars RPAREN
+				|
+				(CallPars_Empty) LPAREN RPAREN
+				;
+				
+ActPars ::=	(ActPars_Single) Expr
+			|
+			(ActPars_Multiple) ActPars COMMA Expr
+			;
+			
+
+Condition ::= 	(Condition_Term) CondTerm
+				|
+				(Condition_Cond) Condition OR CondTerm
+				;
+
+CondTerm ::= 	(CondTerm_Fact) CondFact
+				|
+				(CondTerm_Cond) CondTerm AND CondFact
+				;
+				
+				
+CondFact ::=	(CondFact_Expr) Expr 
+				|
+				(CondFact_Relop) Expr Relop Expr
+				;
+
+ExprList ::=	(ExprList_Term) Term
+				|
+				(ExprList_Addop) ExprList Addop Term
+				;
+
+Expr ::=	(Expr_ExprList) ExprList
+			|
+			(Expr_SubExprList) SUB ExprList
+			|
+			(Expr_Map) Designator MAP Designator
+			;
+				
+Term ::= 	(Term_Single) Factor
+			|
+			(Term_Multiple) Term Mulop Factor
+			;
+
+Factor ::= 	(Factor_Designator) Designator
+			|
+			(Factor_DesignatorWithPars) Designator CallPars
+			|
+			(Factor_NumConst) NUMBER
+			|
+			(Factor_CharConst) CHAR
+			|
+			(Factor_BoolConst) BOOL
+			|
+			(Factor_NewArray) NEW Type LBRACK Expr RBRACK
+			|
+			(Factor_NewObject) NEW Type CallPars
+			|
+			(Factor_Expr) LPAREN Expr RPAREN
+			;
+
 DesignatorSuffix ::= 	(DesignatorSuffix_FieldAccess) DesignatorSuffix DOT IDENT
 						|
 					 	(DesignatorSuffix_ArrayAccess) DesignatorSuffix LBRACK Expr RBRACK
 					 	|
-					 	(DesignatorSuffix_Epsilon) /* epsilon */
+					 	(DesignatorSuffix_Epsilon)
 					 	;
+
+Designator ::= 	(Designator) IDENT DesignatorSuffix
+				;
+
 				
 Label ::= 	(Label) IDENT
 			;
@@ -106,6 +303,7 @@ Addop ::=	(Addop_Add) ADD
 			|
 			(Addop_Sub) SUB
 			;
+		
 
 Mulop ::= 	(Mulop_Mul) MUL
 			|

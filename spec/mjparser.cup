@@ -7,8 +7,10 @@ import rs.ac.bg.etf.pp1.ast.*;
 
 parser code {:
 	
+	boolean loggingEnabled = false;
 	boolean errorDetected = false;
 	Logger log = Logger.getLogger(getClass());
+
    
    	// Redefined error-reporting methods
      
@@ -43,7 +45,7 @@ parser code {:
 
 scan with {:
 	Symbol s = this.getScanner().next_token();
-	if (s != null && s.value != null) 
+	if (loggingEnabled && s != null && s.value != null) 
 		log.info(s.toString() + " " + s.value.toString());
 	return s;
 :}

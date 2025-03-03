@@ -73,15 +73,15 @@ precedence left ELSE;
 Program ::= (Program) PROGRAM IDENT ProgramDeclList LBRACE MethodDeclList RBRACE
 			;
 
-ProgramDeclList ::=	(ProgramDeclList_ConstDecl) ConstDecl ProgramDeclList
+ProgramDeclList ::=	(ProgramDeclList_ConstDecl) ProgramDeclList ConstDecl
 					|
-					(ProgramDeclList_VarDecl) VarDecl ProgramDeclList
+					(ProgramDeclList_VarDecl) ProgramDeclList VarDecl
 					|
-					(ProgramDeclList_ClassDecl) ClassDecl ProgramDeclList
+					(ProgramDeclList_ClassDecl) ProgramDeclList ClassDecl
 					|
-					(ProgramDeclList_InterfaceDecl) InterfaceDecl ProgramDeclList
+					(ProgramDeclList_InterfaceDecl) ProgramDeclList InterfaceDecl
 					|
-					(ProgramDeclList_Epsilon)
+					(ProgramDeclList_Epsilon) /* epsilon */
 					;
 
 ConstAssign ::=	(ConstAssign_Num) IDENT EQUAL NUMBER
@@ -93,7 +93,7 @@ ConstAssign ::=	(ConstAssign_Num) IDENT EQUAL NUMBER
 
 ConstDeclNoType ::=	(ConstDeclNoType_ConstAssing) ConstDeclNoType COMMA ConstAssign
 					|
-					(ConstDeclNoType_Epsilon)
+					(ConstDeclNoType_Epsilon) /* epsilon */
 					;
 
 ConstDecl ::= 	(ConstDecl) CONST Type ConstAssign ConstDeclNoType SEMI
@@ -106,15 +106,15 @@ VarName ::=	(VarName_NonArray) IDENT
 
 VarDeclNoType ::= 	(VarDeclNoType_VarName) VarDeclNoType COMMA VarName
 					|
-					(VarDeclNoType_Epsilon)
+					(VarDeclNoType_Epsilon) /* epsilon */
 					;
 
 VarDecl ::=	(VarDecl) Type VarName VarDeclNoType SEMI
 			;
 
-MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDecl MethodDeclList
+MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDeclList MethodDecl
 					|
-					(MethodDeclList_Epsilon)
+					(MethodDeclList_Epsilon) /* epsilon */
 					;
 
 ClassBody ::=	(ClassBody_Fields) VarDeclList
@@ -127,11 +127,11 @@ ClassDecl ::= 	(ClassDecl_Derived) CLASS IDENT EXTENDS Type LBRACE ClassBody RBR
 				(ClassDecl_NonDerived) CLASS IDENT LBRACE ClassBody RBRACE
 				;
 
-InterfaceBody ::=	(InterfaceBody_MethodDecl) MethodDecl InterfaceBody
+InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 					|
-					(InterfaceBody_MethodSignature) MethodSignature SEMI InterfaceBody
+					(InterfaceBody_MethodSignature) InterfaceBody MethodSignature SEMI 
 					|
-					(InterfaceBody_Epsilon)
+					(InterfaceBody_Epsilon) /* epsilon */
 					; 
 
 InterfaceDecl ::=	(InterfaceDecl) INTERFACE IDENT LBRACE InterfaceBody RBRACE
@@ -145,27 +145,27 @@ MethodSignature ::=	(MethodSignature_NoPars) Type IDENT LPAREN RPAREN
 					|
 					(MethodSignature_VoidPars) VOID IDENT LPAREN FormPars RPAREN
 					;
-
-StatementList ::= 	(StatementList_Statement) Statement StatementList
-					|
-					(StatementList_Epsilon)
-					;
 				
-VarDeclList ::=	(VarDeclList_VarDecl) VarDecl VarDeclList
+VarDeclList ::=	(VarDeclList_VarDecl) VarDeclList VarDecl
 				|
-				(VarDeclList_Epsilon)
+				(VarDeclList_Epsilon) /* epsilon */
 				;
 				
 MethodDecl ::=	(MethodDecl) MethodSignature VarDeclList LBRACE StatementList RBRACE
 				;
 
-FormPars ::= 	(FormPars_Single) Type VarName
+FormPars ::= 	(FormPars_VarName) Type VarName
 				|
-				(FormPars_Multiple) FormPars COMMA Type VarName
+				(FormPars_VarNameList) FormPars COMMA Type VarName
 				;
 
 Type ::=	(Type) IDENT
 			;
+			
+StatementList ::= 	(StatementList_Statement) StatementList Statement
+					|
+					(StatementList_Epsilon) /* epsilon */
+					;
 
 Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
@@ -179,15 +179,15 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
 				(Statement_ReturnVoid) RETURN SEMI
 				|
-				(Statement_Return) RETURN Expr SEMI
+				(Statement_ReturnExpr) RETURN Expr SEMI
 				|
 				(Statement_Read) READ LPAREN Designator RPAREN SEMI
 				|
-				(Statement_Print) PRINT LPAREN Expr RPAREN SEMI
+				(Statement_PrintExpr) PRINT LPAREN Expr RPAREN SEMI
 				|
-				(Statement_PrintNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
+				(Statement_PrintExprWithNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
 				|
-				(Statement_DoWhileEmpty) DO Statement WHILE LPAREN RPAREN SEMI
+				(Statement_DoWhileTrue) DO Statement WHILE LPAREN RPAREN SEMI
 				|
 				(Statement_DoWhileCondition) DO Statement WHILE LPAREN Condition RPAREN SEMI
 				|
@@ -208,36 +208,36 @@ DesignatorStatement ::= (DesignatorStatement_AssignExpr) Designator Assignop Exp
 						(DesignatorStatement_AssignSetop) Designator Assignop Designator Setop Designator
 						;
 
-CallPars ::=	(CallPars_Pars) LPAREN ActPars RPAREN
+CallPars ::=	(CallPars_ActPars) LPAREN ActPars RPAREN
 				|
 				(CallPars_Empty) LPAREN RPAREN
 				;
 				
-ActPars ::=	(ActPars_Single) Expr
+ActPars ::=	(ActPars_Expr) Expr
 			|
-			(ActPars_Multiple) ActPars COMMA Expr
+			(ActPars_ExprList) ActPars COMMA Expr
 			;
 			
 
-Condition ::= 	(Condition_Term) CondTerm
+Condition ::= 	(Condition_CondTerm) CondTerm
 				|
-				(Condition_Cond) Condition OR CondTerm
+				(Condition_OrCondTerm) Condition OR CondTerm
 				;
 
-CondTerm ::= 	(CondTerm_Fact) CondFact
+CondTerm ::= 	(CondTerm_CondFact) CondFact
 				|
-				(CondTerm_Cond) CondTerm AND CondFact
+				(CondTerm_AndConfFact) CondTerm AND CondFact
 				;
 				
 				
 CondFact ::=	(CondFact_Expr) Expr 
 				|
-				(CondFact_Relop) Expr Relop Expr
+				(CondFact_RelopExpr) Expr Relop Expr
 				;
 
 ExprList ::=	(ExprList_Term) Term
 				|
-				(ExprList_Addop) ExprList Addop Term
+				(ExprList_AddopTerm) ExprList Addop Term
 				;
 
 Expr ::=	(Expr_ExprList) ExprList
@@ -247,14 +247,14 @@ Expr ::=	(Expr_ExprList) ExprList
 			(Expr_Map) Designator MAP Designator
 			;
 				
-Term ::= 	(Term_Single) Factor
+Term ::= 	(Term_Factor) Factor
 			|
-			(Term_Multiple) Term Mulop Factor
+			(Term_MulopFactor) Term Mulop Factor
 			;
 
 Factor ::= 	(Factor_Designator) Designator
 			|
-			(Factor_DesignatorWithPars) Designator CallPars
+			(Factor_DesignatorCall) Designator CallPars
 			|
 			(Factor_NumConst) NUMBER
 			|
@@ -273,7 +273,7 @@ DesignatorSuffix ::= 	(DesignatorSuffix_FieldAccess) DesignatorSuffix DOT IDENT
 						|
 					 	(DesignatorSuffix_ArrayAccess) DesignatorSuffix LBRACK Expr RBRACK
 					 	|
-					 	(DesignatorSuffix_Epsilon)
+					 	(DesignatorSuffix_Epsilon) /* epsilon */
 					 	;
 
 Designator ::= 	(Designator) IDENT DesignatorSuffix

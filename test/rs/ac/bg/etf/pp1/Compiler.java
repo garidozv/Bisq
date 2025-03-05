@@ -43,25 +43,26 @@ public class Compiler {
 
 	        Program programNode = (Program)(rootNode.value); 
 			
-	        /*
+	        
 			// Log syntax tree
-			log.info(prog.toString(""));
+			log.info(programNode.toString(""));
 			log.info("===================================");
-			*/
+			
 			
 	        // Symbol table initialization
 			Tab.init();
 			
-			Struct boolTypeStruct = new Struct(Struct.Bool);
-			Obj boolTypeObj = Tab.insert(Obj.Type, "bool", boolTypeStruct);
+			Obj boolTypeObj = Tab.insert(Obj.Type, "bool", StructUtils.boolType);
 			boolTypeObj.setAdr(-1);
 			boolTypeObj.setLevel(-1);
+			
+			// TODO: Add rest of the missing types and methods
 			
 			// Semantic analysis
 			SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
 			programNode.traverseBottomUp(semAnalyzer);
 			
-			Tab.dump();
+			Tab.dump(new UpdatedDumpSymbolTableVisitor());
 			log.info("===================================");
 			
 			if (!parser.errorDetected && semAnalyzer.passed()) {

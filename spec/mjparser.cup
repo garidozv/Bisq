@@ -68,12 +68,15 @@ nonterminal
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
-	Program, ProgramDeclList;
+	ProgramName, Program, ProgramDeclList;
 	
 precedence left ELSE;
 
-Program ::= (Program) PROGRAM IDENT ProgramDeclList LBRACE MethodDeclList RBRACE
+Program ::= (Program) PROGRAM ProgramName ProgramDeclList LBRACE MethodDeclList RBRACE
 			;
+			
+ProgramName ::=	(ProgramName) IDENT
+				;
 
 ProgramDeclList ::=	(ProgramDeclList_ConstDecl) ProgramDeclList ConstDecl
 					|

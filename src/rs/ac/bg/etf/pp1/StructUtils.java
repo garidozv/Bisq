@@ -11,6 +11,10 @@ public final class StructUtils {
 	public static String getTypeName(Struct type) {
 		StringBuilder strBuilder = new StringBuilder(); 
 		
+		if (type == null) {
+			return "Invalid type";
+		}
+		
 		switch (type.getKind()) {
 		case Struct.None:
 			return "notype";

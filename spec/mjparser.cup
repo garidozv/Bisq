@@ -68,7 +68,8 @@ nonterminal
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
-	ProgramName, Program, ProgramDeclList;
+	ProgramName, Program, ProgramDeclList, MethodName, MethodReturnType,
+	FormParVar;
 	
 precedence left ELSE;
 
@@ -142,14 +143,18 @@ InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 InterfaceDecl ::=	(InterfaceDecl) INTERFACE IDENT LBRACE InterfaceBody RBRACE
 					;
 
-MethodSignature ::=	(MethodSignature_NoPars) Type IDENT LPAREN RPAREN
+MethodSignature ::=	(MethodSignature_NoPars) MethodReturnType MethodName LPAREN RPAREN
 					|
-					(MethodSignature_Pars) Type IDENT LPAREN FormPars RPAREN
-					|
-					(MethodSignature_VoidNoPars) VOID IDENT LPAREN RPAREN
-					|
-					(MethodSignature_VoidPars) VOID IDENT LPAREN FormPars RPAREN
+					(MethodSignature_Pars) MethodReturnType MethodName LPAREN FormPars RPAREN
 					;
+					
+MethodReturnType ::=	(MethodReturnType_Void) VOID
+						|
+						(MethodReturnType_Type) Type
+						;
+					
+MethodName ::= 	(MethodName) IDENT
+				;
 				
 VarDeclList ::=	(VarDeclList_VarDecl) VarDeclList VarDecl
 				|
@@ -159,9 +164,14 @@ VarDeclList ::=	(VarDeclList_VarDecl) VarDeclList VarDecl
 MethodDecl ::=	(MethodDecl) MethodSignature VarDeclList LBRACE StatementList RBRACE
 				;
 
-FormPars ::= 	(FormPars_VarName) Type VarName
+FormPars ::= 	(FormPars_FormParVar) FormParVar
 				|
-				(FormPars_VarNameList) FormPars COMMA Type VarName
+				(FormPars_FormParVarList) FormPars COMMA FormParVar
+				;
+				
+FormParVar ::=	(FormParVar_NonArray) Type IDENT 
+				|
+				(FormParVar_Array) Type IDENT LBRACK RBRACK
 				;
 
 Type ::=	(Type) IDENT

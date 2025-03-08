@@ -69,7 +69,7 @@ nonterminal
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodName, MethodReturnType,
-	FormParVar, ClassName, ExtendedClassName, ClassFields;
+	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName;
 	
 precedence left ELSE;
 
@@ -149,7 +149,10 @@ InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 					(InterfaceBody_Epsilon) /* epsilon */
 					; 
 
-InterfaceDecl ::=	(InterfaceDecl) INTERFACE IDENT LBRACE InterfaceBody RBRACE
+InterfaceDecl ::=	(InterfaceDecl) INTERFACE InterfaceName LBRACE InterfaceBody RBRACE
+					;
+					
+InterfaceName ::=	(InterfaceName) IDENT
 					;
 
 MethodSignature ::=	(MethodSignature_NoPars) MethodReturnType MethodName LPAREN RPAREN

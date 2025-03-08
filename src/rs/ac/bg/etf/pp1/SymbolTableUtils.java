@@ -6,15 +6,14 @@ import rs.etf.pp1.symboltable.concepts.Struct;
 
 public final class SymbolTableUtils {
 	
-	public enum ClassMethodTypes {
-		REGULAR(-1),
-		CLASS_INHERITED(-2),
-		INTERFACE_INHERITED(-3),
-		INTERFACE_DEFAULT(-4);
+	public enum MethodTypes {
+		REGULAR(-2),
+		INHERITED(-3),
+		NOT_IMPLEMENTED(-4);
 		
 		public final int value;
 		
-		private ClassMethodTypes(int val) {
+		private MethodTypes(int val) {
 			value = val;
 		}
 	}

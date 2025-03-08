@@ -44,7 +44,14 @@ public class UpdatedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 			output.append("Set");
 			break;
 		case Struct.Class:
-			output.append("Class [");
+			output.append("Class ").append(structToVisit.getNumberOfFields()).append(" [ ");
+			for (Obj obj : structToVisit.getMembers()) {
+				obj.accept(this);
+			}
+			output.append("]");
+			break;
+		case Struct.Interface:
+			output.append("Interface ").append(structToVisit.getNumberOfFields()).append(" [ ");
 			for (Obj obj : structToVisit.getMembers()) {
 				obj.accept(this);
 			}

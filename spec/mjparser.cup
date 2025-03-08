@@ -69,7 +69,7 @@ nonterminal
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodName, MethodReturnType,
-	FormParVar;
+	FormParVar, ClassName, ExtendedClassName, ClassFields;
 	
 precedence left ELSE;
 
@@ -123,14 +123,23 @@ MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDeclList MethodDecl
 					(MethodDeclList_Epsilon) /* epsilon */
 					;
 
-ClassBody ::=	(ClassBody_Fields) VarDeclList
+ClassBody ::=	(ClassBody_Fields) ClassFields
 				|
-				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE  
+				(ClassBody_FieldsAndMethods) ClassFields LBRACE MethodDeclList RBRACE  
+				;
+				
+ClassFields ::=	(ClassFields) VarDeclList
 				;
 
-ClassDecl ::= 	(ClassDecl_Derived) CLASS IDENT EXTENDS Type LBRACE ClassBody RBRACE
+ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedClassName LBRACE ClassBody RBRACE
 				|
-				(ClassDecl_NonDerived) CLASS IDENT LBRACE ClassBody RBRACE
+				(ClassDecl_NonDerived) CLASS ClassName LBRACE ClassBody RBRACE
+				;
+				
+ExtendedClassName ::= 	(ExtendedClassName) Type
+						;
+				
+ClassName ::=	(ClassName) IDENT
 				;
 
 InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl

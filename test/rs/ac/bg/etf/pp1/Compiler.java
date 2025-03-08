@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.rmi.server.LoaderHandler;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
@@ -52,7 +53,7 @@ public class Compiler {
 	        // Symbol table initialization
 			Tab.init();
 			
-			Obj boolTypeObj = Tab.insert(Obj.Type, "bool", StructUtils.boolType);
+			Obj boolTypeObj = Tab.insert(Obj.Type, "bool", SymbolTableUtils.boolType);
 			boolTypeObj.setAdr(-1);
 			boolTypeObj.setLevel(-1);
 			
@@ -64,6 +65,7 @@ public class Compiler {
 			
 			Tab.dump(new UpdatedDumpSymbolTableVisitor());
 			log.info("===================================");
+			
 			
 			if (!parser.errorDetected && semAnalyzer.passed()) {
 				log.info("Program successfully parsed!");

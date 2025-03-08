@@ -1,9 +1,23 @@
 package rs.ac.bg.etf.pp1;
 
+import java_cup.internal_error;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
-public final class StructUtils {
+public final class SymbolTableUtils {
+	
+	public enum ClassMethodTypes {
+		REGULAR(-1),
+		CLASS_INHERITED(-2),
+		INTERFACE_INHERITED(-3),
+		INTERFACE_DEFAULT(-4);
+		
+		public final int value;
+		
+		private ClassMethodTypes(int val) {
+			value = val;
+		}
+	}
 	
 	public static final Struct boolType = new Struct(Struct.Bool);
 	

@@ -10,16 +10,38 @@ import org.apache.log4j.Logger;
 
 import java_cup.internal_error;
 import rs.ac.bg.etf.pp1.SymbolTableUtils.MethodTypes;
+import rs.ac.bg.etf.pp1.ast.ActPars_Expr;
+import rs.ac.bg.etf.pp1.ast.ActPars_ExprList;
+import rs.ac.bg.etf.pp1.ast.CallPars_ActPars;
+import rs.ac.bg.etf.pp1.ast.CallPars_Empty;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.ClassFields;
 import rs.ac.bg.etf.pp1.ast.ClassName;
+import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
+import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
 import rs.ac.bg.etf.pp1.ast.ConstAssign;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Bool;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Char;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Num;
 import rs.ac.bg.etf.pp1.ast.ConstDecl;
+import rs.ac.bg.etf.pp1.ast.Designator_ArrayAccess;
+import rs.ac.bg.etf.pp1.ast.Designator_Ident;
+import rs.ac.bg.etf.pp1.ast.Designator_MemberAccess;
+import rs.ac.bg.etf.pp1.ast.ExprList_AddopTerm;
+import rs.ac.bg.etf.pp1.ast.ExprList_SubTerm;
+import rs.ac.bg.etf.pp1.ast.ExprList_Term;
+import rs.ac.bg.etf.pp1.ast.Expr_ExprList;
+import rs.ac.bg.etf.pp1.ast.Expr_Map;
 import rs.ac.bg.etf.pp1.ast.ExtendedClassName;
+import rs.ac.bg.etf.pp1.ast.Factor_BoolConst;
+import rs.ac.bg.etf.pp1.ast.Factor_CharConst;
+import rs.ac.bg.etf.pp1.ast.Factor_Designator;
+import rs.ac.bg.etf.pp1.ast.Factor_DesignatorCall;
+import rs.ac.bg.etf.pp1.ast.Factor_Expr;
+import rs.ac.bg.etf.pp1.ast.Factor_NewArray;
+import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
+import rs.ac.bg.etf.pp1.ast.Factor_NumConst;
 import rs.ac.bg.etf.pp1.ast.FormParVar;
 import rs.ac.bg.etf.pp1.ast.FormParVar_Array;
 import rs.ac.bg.etf.pp1.ast.FormParVar_NonArray;
@@ -32,7 +54,11 @@ import rs.ac.bg.etf.pp1.ast.MethodReturnType_Void;
 import rs.ac.bg.etf.pp1.ast.MethodSignature_NoPars;
 import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.ast.ProgramName;
+import rs.ac.bg.etf.pp1.ast.Relop_Equal;
+import rs.ac.bg.etf.pp1.ast.Relop_NotEqual;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
+import rs.ac.bg.etf.pp1.ast.Term_Factor;
+import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.Type;
 import rs.ac.bg.etf.pp1.ast.VarDeclList_Epsilon;
 import rs.ac.bg.etf.pp1.ast.VarDeclList_VarDecl;
@@ -127,6 +153,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", name), node);
 		} 
+		// Constants can only be of int, char, and bool values, so equals() is sufficient
 		else if (!currentType.equals(type)) {
 			report_error(String.format(
 					"Assignment of incompatible types: '%s' to '%s'", 
@@ -318,6 +345,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	// Class declarations
+	
+	// TODO: Add support for constructors
 	
 	@Override
 	public void visit(ClassName className) {
@@ -520,4 +549,357 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		paramCount = 0;
 	}
 	
+	// Designator 
+	
+	@Override
+	public void visit(Designator_Ident designator) {
+		Obj currentObj = Tab.find(designator.getI1());
+		
+		if (designator.getI1().equals("this") && currentClass != null) {
+			// TODO: Test this out
+			designator.obj = new Obj(Obj.Var, "this", currentClass.getType());
+		}
+		else if (currentObj == Tab.noObj) {
+			report_error(String.format("Access to undefined variable '%s'", designator.getI1()), designator);
+			designator.obj = Tab.noObj;
+		}
+		else if (currentObj.getKind() != Obj.Con && currentObj.getKind() != Obj.Meth &&
+				currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Fld) {
+			report_error(String.format("Invalid variable '%s'", designator.getI1()), designator);
+			designator.obj = Tab.noObj;
+		}
+		else {
+			designator.obj = currentObj;
+		}
+	}
+	
+	@Override
+	public void visit(Designator_MemberAccess designator) {
+		Obj currentObj = designator.getDesignator().obj;
+		
+		if (currentObj == Tab.noObj) {
+			// Error will already be reported
+			// report_error("Access to undefined variable ", designator);
+			designator.obj = Tab.noObj;
+		}
+		else if (currentObj.getKind() != Obj.Elem && currentObj.getKind() != Obj.Fld &&
+				currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Meth ||
+				currentObj.getType().getKind() != Struct.Class) {
+			report_error(String.format("Access to a memeber of a non-class type", designator.getI2()), designator);
+			designator.obj = Tab.noObj;
+		}
+		else {
+			Obj memberObj = null;
+			
+			if (currentObj.getName().equals("this")) {
+				/*
+				 * If accessing the class member via 'this' reference, we cannot use the type, since
+				 * it is not completed yet (scope is still open, and members have not been set)
+				 * So we need to access the class scope, which is one scope up, since we are in the
+				 * method scope at the moment
+				 */
+				memberObj = Tab.currentScope.getOuter().findSymbol(designator.getI2());
+			}
+			else {
+				memberObj = currentObj.getType().getMembersTable().searchKey(designator.getI2());
+			}
+			
+			if(memberObj == null || memberObj.getKind() != Obj.Fld && memberObj.getKind() != Obj.Meth) {
+				report_error(String.format("Access to an undefined class member '%s'", designator.getI2()), designator);
+				designator.obj = Tab.noObj;
+			}
+			else {
+				designator.obj = memberObj;
+			}
+		}
+	}
+	
+	@Override
+	public void visit(Designator_ArrayAccess designator) {
+		Obj currentObj = designator.getDesignator().obj;
+		
+		if (currentObj == Tab.noObj) {
+			// Error will already be reported
+			// report_error("Access to undefined variable ", designator);
+			designator.obj = Tab.noObj;
+		}
+		else if (currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Fld ||
+				currentObj.getType().getKind() != Struct.Array) {
+			report_error("Access to an invalid array variable", designator);
+			designator.obj = Tab.noObj;
+		}
+		else if (!designator.getExpr().struct.equals(Tab.intType)) {
+			report_error("Array indexing with a non-integer value", designator);
+			designator.obj = Tab.noObj;
+		}
+		else {
+			designator.obj = new Obj(Obj.Elem, 
+					String.format("%s[ind]", currentObj.getName()), currentObj.getType().getElemType());
+		}
+	}
+	
+	@Override
+	public void visit(Factor_BoolConst factor) {
+		factor.struct = SymbolTableUtils.boolType;
+	}
+	
+	@Override
+	public void visit(Factor_CharConst factor) {
+		factor.struct = Tab.charType;
+	}
+	
+	@Override
+	public void visit(Factor_NumConst factor) {
+		factor.struct = Tab.intType;
+	}
+	
+	@Override
+	public void visit(Factor_Designator factor) {
+		factor.struct = factor.getDesignator().obj.getType();
+	}
+	
+	@Override
+	public void visit(Factor_Expr factor) {
+		factor.struct = factor.getExpr().struct;
+	}
+	
+	// TODO: Add reserved keywords (this, ...)
+	
+	@Override
+	public void visit(Factor_DesignatorCall factor) {
+		if (factor.getDesignator().obj.equals(Tab.noObj)) {
+			// Error will already be reported
+			factor.struct = Tab.noType;
+		}
+		else if (factor.getDesignator().obj.getKind() != Obj.Meth) {
+			report_error(String.format("Attemp to call a non-method '%s'", factor.getDesignator().obj.getName()), factor);
+			factor.struct = Tab.noType;
+		} 
+		else if (factor.getCallPars().struct.equals(Tab.noType)) {
+			report_error("Invalid call parameters", factor);
+			factor.struct = Tab.noType;
+		}
+		/*
+		else if (currentMethod != null && factor.getDesignator().obj.equals(currentMethod)) {
+			report_error("Direct recursion is not allowed", factor);
+			factor.struct = Tab.noType;
+		}
+		*/
+		else {
+			// Check parameters, but be careful because of 'this' in class methods
+			
+			int paramCount = factor.getDesignator().obj.getLevel();
+			Obj[] params = factor.getDesignator().obj.getLocalSymbols()
+					.toArray(new Obj[factor.getDesignator().obj.getLocalSymbols().size()]);
+			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			
+			paramCount -= (isClassMethod ? 1 : 0);
+			
+			Struct[] args = factor.getCallPars().struct.getImplementedInterfaces()
+					.toArray(new Struct[factor.getCallPars().struct.getImplementedInterfaces().size()]);
+			
+			if (paramCount != args.length) {
+				report_error(String.format(
+						"Number of arguments doesn't match the number of parameters for method '%s'", 
+						factor.getDesignator().obj.getName()), factor);
+				factor.struct = Tab.noType;
+			} 
+			else {
+				boolean valid = true;
+				for (int i = 0; i < paramCount; i++) {
+					if (!SymbolTableUtils.assignableTo(params[i + (isClassMethod ? 1 : 0)].getType(), args[i])) {
+						valid = false;
+						break;
+					}
+				}
+				
+				if (!valid) {
+					report_error(String.format(
+							"Argument types do not match the parameter types for method '%s'", 
+							factor.getDesignator().obj.getName()), factor);
+					factor.struct = Tab.noType;
+				}
+				else {
+					factor.struct = factor.getDesignator().obj.getType();
+				}
+			}			
+		}
+	}
+	
+	@Override
+	public void visit(Factor_NewArray factor) {
+		// TODO: Add support for sets
+		if (currentType == null) {
+			// Error will already be reported
+			factor.struct = Tab.noType;
+		}
+		else if (!factor.getExpr().struct.equals(Tab.intType)) {
+			report_error("Array creation with a non-integer size value", factor);
+			factor.struct = Tab.noType;
+		}
+		else {
+			factor.struct = new Struct(Struct.Array, currentType);
+		}
+	}
+	
+	@Override
+	public void visit(Factor_NewObject factor) {
+		// TODO: Add support for constructors
+		if (currentType == null) {
+			// Error will already be reported
+			factor.struct = Tab.noType;
+		}
+		else if (currentType.getKind() != Struct.Class) {
+			report_error("Attempt to create an object of a non-class type", factor);
+			factor.struct = Tab.noType;
+		}
+		else {
+			factor.struct = currentType;
+		}
+	}
+	
+	/*
+	 * Struct object is used to transfer information on argument types
+	 * - kind field will be set to `Array`
+	 * - implementedInterfaceList field will hold the types of arguments
+	 */
+	
+	@Override
+	public void visit(ActPars_Expr actPars_Expr) {
+		if (actPars_Expr.getExpr().struct.equals(Tab.noType)) {
+			// Error will already be reported
+			actPars_Expr.struct = Tab.noType;
+		}
+		else {
+			Struct parsStruct = new Struct(Struct.Array);
+			parsStruct.addImplementedInterface(actPars_Expr.getExpr().struct);
+			actPars_Expr.struct = parsStruct;
+		}
+	}
+	
+	@Override
+	public void visit(ActPars_ExprList actPars) {
+		if (actPars.getActPars().struct.equals(Tab.noType) || actPars.getExpr().struct.equals(Tab.noType)) {
+			// Error will already be reported
+			actPars.struct = Tab.noType;
+		} else {
+			actPars.struct = actPars.getActPars().struct;
+			actPars.struct.addImplementedInterface(actPars.getExpr().struct);
+		}
+	}
+	
+	@Override
+	public void visit(CallPars_ActPars callPars) {
+		callPars.struct = callPars.getActPars().struct;
+	}
+	
+	@Override
+	public void visit(CallPars_Empty callPars) {
+		callPars.struct = new Struct(Struct.Array);
+	}
+	
+	// Expr
+	
+	@Override
+	public void visit(Expr_ExprList expr) {
+		expr.struct = expr.getExprList().struct;
+	}
+	
+	@Override
+	public void visit(Expr_Map expr) {
+		Obj leftObj = expr.getDesignator().obj, righObj = expr.getDesignator1().obj;
+		
+		if (righObj.getKind() != Obj.Var && righObj.getKind() != Obj.Fld || 
+				righObj.getType().getKind() != Struct.Array || !righObj.getType().getElemType().equals(Tab.intType)) {
+			report_error("Right operand of 'map' operator must be an integer array", expr);
+			expr.struct = Tab.noType;
+			
+		}
+		else if (leftObj.getKind() != Obj.Meth || !leftObj.getType().equals(Tab.intType)) {
+			report_error("Left operand of 'map' operator must be method with integer return type", expr);
+			expr.struct = Tab.noType;
+		}
+		else {
+			int paramCount = leftObj.getLevel();
+			Obj[] params = leftObj.getLocalSymbols()
+					.toArray(new Obj[leftObj.getLocalSymbols().size()]);
+			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			
+			if (!(!isClassMethod && paramCount == 1 && params[0].getType().equals(Tab.intType)) &&
+					!(isClassMethod && paramCount == 2 && params[1].getType().equals(Tab.intType))) {
+				report_error("Left operand of 'map' operator must be method with a single integer parameter", expr);
+				expr.struct = Tab.noType;
+			}
+			else {
+				expr.struct = Tab.intType;
+			}
+		}
+	}
+	
+	@Override
+	public void visit(ExprList_Term exprList) {
+		exprList.struct = exprList.getTerm().struct;
+	}
+	
+	@Override
+	public void visit(ExprList_SubTerm exprList) {
+		if (!exprList.getTerm().struct.equals(Tab.intType)) {
+			report_error("Negation of a non-integer value", exprList);
+			exprList.struct = Tab.noType;
+		}
+		else {
+			exprList.struct = Tab.intType;
+		}
+	}
+	
+	@Override
+	public void visit(ExprList_AddopTerm exprList) {
+		if (!exprList.getTerm().struct.equals(Tab.intType) || !exprList.getExprList().struct.equals(Tab.intType)) {
+			report_error("Addition of non-integer values", exprList);
+			exprList.struct = Tab.noType;
+		}
+		else {
+			exprList.struct = Tab.intType;
+		}
+	}
+	
+	@Override
+	public void visit(Term_Factor term) {
+		term.struct = term.getFactor().struct;
+	}
+	
+	@Override
+	public void visit(Term_MulopFactor term) {
+		if (!term.getFactor().struct.equals(Tab.intType) || !term.getTerm().struct.equals(Tab.intType)) {
+			report_error("Multiplication of non-integer values", term);
+			term.struct = Tab.noType;
+		}
+		else {
+			term.struct = Tab.intType;
+		}
+	}
+	
+	// Conditions
+	
+	@Override
+	public void visit(CondFact_Expr condFact) {
+		condFact.struct = condFact.getExpr().struct;
+	}
+	
+	@Override
+	public void visit(CondFact_RelopExpr condFact) {
+		if ((condFact.getExpr().struct.isRefType() || condFact.getExpr1().struct.isRefType()) &&
+				!(condFact.getRelop() instanceof Relop_Equal || condFact.getRelop() instanceof Relop_NotEqual)) {
+			report_error("Only equality and non-equality relational operators can be used with class and array variables", condFact);
+			condFact.struct = Tab.noType;
+		} 
+		else if (!condFact.getExpr().struct.compatibleWith(condFact.getExpr1().struct)) {
+			report_error("Attemp to compare variables of non-compatible types", condFact);
+			condFact.struct = Tab.noType;
+		} 
+		else {
+			// Not important, since it is not used in CondTerm
+			condFact.struct = SymbolTableUtils.boolType;
+		}
+	}
 }

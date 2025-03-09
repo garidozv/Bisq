@@ -62,14 +62,20 @@ terminal Character CHAR;
 terminal Boolean BOOL;
 
 nonterminal 
-	Setop, Mulop, Relop, Addop, Assignop, Label, Designator, DesignatorSuffix,
-	Factor, Term, Expr, ExprList, CondFact, CondTerm, Condition, 
-	ActPars, CallPars, DesignatorStatement, Statement, Type, FormPars,
+	Setop, Relop, Mulop, Addop, Assignop, Label,
+	CondTerm, Condition, 
+	DesignatorStatement, Statement, Type, FormPars,
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodName, MethodReturnType,
 	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName;
+	
+nonterminal rs.etf.pp1.symboltable.concepts.Obj
+	Designator;
+	
+nonterminal rs.etf.pp1.symboltable.concepts.Struct
+	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact;
 	
 precedence left ELSE;
 
@@ -264,12 +270,12 @@ CondFact ::=	(CondFact_Expr) Expr
 
 ExprList ::=	(ExprList_Term) Term
 				|
+				(ExprList_SubTerm) SUB Term
+				|
 				(ExprList_AddopTerm) ExprList Addop Term
 				;
 
 Expr ::=	(Expr_ExprList) ExprList
-			|
-			(Expr_SubExprList) SUB ExprList
 			|
 			(Expr_Map) Designator MAP Designator
 			;
@@ -296,15 +302,12 @@ Factor ::= 	(Factor_Designator) Designator
 			(Factor_Expr) LPAREN Expr RPAREN
 			;
 
-DesignatorSuffix ::= 	(DesignatorSuffix_FieldAccess) DesignatorSuffix DOT IDENT
-						|
-					 	(DesignatorSuffix_ArrayAccess) DesignatorSuffix LBRACK Expr RBRACK
-					 	|
-					 	(DesignatorSuffix_Epsilon) /* epsilon */
-					 	;
-
-Designator ::= 	(Designator) IDENT DesignatorSuffix
-				;
+Designator ::=	(Designator_Ident) IDENT
+				|
+				(Designator_MemberAccess) Designator DOT IDENT
+				|
+			 	(Designator_ArrayAccess) Designator LBRACK Expr RBRACK
+			 	;
 
 				
 Label ::= 	(Label) IDENT

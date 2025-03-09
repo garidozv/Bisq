@@ -20,6 +20,23 @@ public final class SymbolTableUtils {
 	
 	public static final Struct boolType = new Struct(Struct.Bool);
 	
+	public static boolean assignableTo(Struct dest, Struct src) {
+		if (src.assignableTo(dest)) return true;
+		
+		if (dest.getKind() == Struct.Interface && src.getKind() == Struct.Class &&
+				src.getImplementedInterfaces().contains(dest)) {
+			return true;
+		}
+		
+		// Does not support multilevel inheritance (we only check inherited class of src)
+		if (dest.getKind() == Struct.Class && src.getKind() == Struct.Class &&
+				src.getElemType() != null && src.getElemType() == dest) {
+			return true;
+		}
+		
+		return false;
+	}
+	
 	// TODO: Add support for interface and set types
 	public static String getTypeName(Struct type) {
 		StringBuilder strBuilder = new StringBuilder(); 

@@ -62,9 +62,8 @@ terminal Character CHAR;
 terminal Boolean BOOL;
 
 nonterminal 
-	Setop, Relop, Mulop, Addop, Assignop, Label,
-	CondTerm, Condition, 
-	DesignatorStatement, Statement, Type, FormPars,
+	Setop, Relop, Mulop, Addop, Assignop, Label, DoToken, CondTerm,
+	DesignatorStatement, Statement, Type, FormPars, Condition,
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
@@ -220,15 +219,17 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
 				(Statement_PrintExprWithNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
 				|
-				(Statement_DoWhileTrue) DO Statement WHILE LPAREN RPAREN SEMI
+				(Statement_DoWhileTrue) DoToken Statement WHILE LPAREN RPAREN SEMI
 				|
-				(Statement_DoWhileCondition) DO Statement WHILE LPAREN Condition RPAREN SEMI
+				(Statement_DoWhileCondition) DoToken Statement WHILE LPAREN Condition RPAREN SEMI
 				|
-				(Statement_DoWhileConditionWithDesignatorStatement) DO Statement WHILE LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
+				(Statement_DoWhileConditionWithDesignatorStatement) DoToken Statement WHILE LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
 				|
 				(Statement_Block) LBRACE StatementList RBRACE
 				;
 				
+DoToken ::=	(DoToken) DO
+			;				
 
 DesignatorStatement ::= (DesignatorStatement_AssignExpr) Designator Assignop Expr
 						|
@@ -259,7 +260,7 @@ Condition ::= 	(Condition_CondTerm) CondTerm
 
 CondTerm ::= 	(CondTerm_CondFact) CondFact
 				|
-				(CondTerm_AndConfFact) CondTerm AND CondFact
+				(CondTerm_AndCondFact) CondTerm AND CondFact
 				;
 				
 				

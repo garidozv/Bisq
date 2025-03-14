@@ -20,11 +20,17 @@ import rs.ac.bg.etf.pp1.ast.ClassFields;
 import rs.ac.bg.etf.pp1.ast.ClassName;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
+import rs.ac.bg.etf.pp1.ast.CondTerm_AndCondFact;
+import rs.ac.bg.etf.pp1.ast.CondTerm_CondFact;
 import rs.ac.bg.etf.pp1.ast.ConstAssign;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Bool;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Char;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Num;
 import rs.ac.bg.etf.pp1.ast.ConstDecl;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Dec;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Inc;
 import rs.ac.bg.etf.pp1.ast.Designator_ArrayAccess;
 import rs.ac.bg.etf.pp1.ast.Designator_Ident;
 import rs.ac.bg.etf.pp1.ast.Designator_MemberAccess;
@@ -56,6 +62,10 @@ import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.ast.ProgramName;
 import rs.ac.bg.etf.pp1.ast.Relop_Equal;
 import rs.ac.bg.etf.pp1.ast.Relop_NotEqual;
+import rs.ac.bg.etf.pp1.ast.Statement_Break;
+import rs.ac.bg.etf.pp1.ast.Statement_Continue;
+import rs.ac.bg.etf.pp1.ast.Statement_DoWhileCondition;
+import rs.ac.bg.etf.pp1.ast.Statement_DoWhileConditionWithDesignatorStatement;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.ast.Term_Factor;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
@@ -71,6 +81,12 @@ import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 import rs.etf.pp1.symboltable.structure.SymbolDataStructure;
+import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
+import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
+import rs.ac.bg.etf.pp1.ast.Statement_Read;
+import rs.ac.bg.etf.pp1.ast.Statement_ReturnExpr;
+import rs.ac.bg.etf.pp1.ast.Statement_ReturnVoid;
+import rs.ac.bg.etf.pp1.ast.DoToken;
 
 public class SemanticAnalyzer extends VisitorAdaptor {
 	
@@ -80,6 +96,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private Obj currentClass = null;
 	private Obj currentInterface = null;
 	private int paramCount = 0;	
+	private int loopCount = 0;
+	private boolean methodReturned = false;
 	
 	boolean errorDetected = false;
 	private boolean hasMain = false;
@@ -306,6 +324,12 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			hasMain = true;
 		}
 		
+		if (!currentMethod.getType().equals(Tab.noType) && !methodReturned) {
+			report_error(String.format(
+					"Non-void method '%s' must contain a return statement", currentMethod.getName()), methodDecl);
+		} 
+		
+		// Do this even if no return method is detected, so that the analyzing can continue correctly
 		currentMethod.setLevel(paramCount);
 		Tab.chainLocalSymbols(currentMethod);
 		Tab.closeScope();
@@ -397,10 +421,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				Obj methodObj = Tab.currentScope.findSymbol(member.getName());
 				
 				if (methodObj == null) {
-					report_error(String.format("Interface method %s must be implemented", member.getName()), classDecl);
+					report_error(String.format("Interface method '%s' must be implemented", member.getName()), classDecl);
 				} 
 				else if (methodObj.getLevel() != member.getLevel()) {
-					report_error(String.format("Interface method %s' signature must not be changed", member.getName()), classDecl);
+					report_error(String.format("Interface method '%s' signature must not be changed", member.getName()), classDecl);
 				}
 				else {
 					int cnt = member.getLevel() - 1;
@@ -556,7 +580,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		Obj currentObj = Tab.find(designator.getI1());
 		
 		if (designator.getI1().equals("this") && currentClass != null) {
-			// TODO: Test this out
 			designator.obj = new Obj(Obj.Var, "this", currentClass.getType());
 		}
 		else if (currentObj == Tab.noObj) {
@@ -900,6 +923,197 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		else {
 			// Not important, since it is not used in CondTerm
 			condFact.struct = SymbolTableUtils.boolType;
+		}
+	}
+	
+	@Override
+	public void visit(CondTerm_CondFact condTerm) {
+		if (!condTerm.getCondFact().struct.equals(SymbolTableUtils.boolType)) {
+			report_error("Logical operators cannot be applied to non-boolean operators", condTerm);
+		}
+	}
+	
+	// Statements
+	
+	@Override
+	public void visit(DesignatorStatement_AssignExpr designatorStatement) {
+		Obj designatorObj = designatorStatement.getDesignator().obj;
+		
+		if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
+				designatorObj.getKind() != Obj.Fld) {
+			report_error(String.format("Assignment to a non-variable '%s'", designatorObj.getName()), designatorStatement);
+		}
+		else if (!SymbolTableUtils.assignableTo(designatorObj.getType(), designatorStatement.getExpr().struct)) {
+			report_error(String.format("Assignment of a value with incopatible type to '%s'", designatorObj.getName()), designatorStatement);
+		}
+	}
+	
+	@Override
+	public void visit(DesignatorStatement_Inc designatorStatement) {
+		Obj designatorObj = designatorStatement.getDesignator().obj;
+		
+		if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
+				designatorObj.getKind() != Obj.Fld) {
+			report_error(String.format(
+					"Attempt to increment a non-variable '%s'", designatorObj.getName()), designatorStatement);
+		}
+		else if (!designatorObj.getType().equals(Tab.intType)) {
+			report_error(String.format(
+					"Attempt to increment a non-integer variable '%s'", designatorObj.getName()), designatorStatement);
+		}
+	}
+	
+	@Override
+	public void visit(DesignatorStatement_Dec designatorStatement) {
+		Obj designatorObj = designatorStatement.getDesignator().obj;
+		
+		if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
+				designatorObj.getKind() != Obj.Fld) {
+			report_error(String.format(
+					"Attempt to decrement a non-variable '%s'", designatorObj.getName()), designatorStatement);
+		}
+		else if (!designatorObj.getType().equals(Tab.intType)) {
+			report_error(String.format(
+					"Attempt to decrement a non-integer variable '%s'", designatorObj.getName()), designatorStatement);
+		}
+	}
+	
+	@Override
+	public void visit(DesignatorStatement_Call designatorStatement) {
+		Obj designatorObj = designatorStatement.getDesignator().obj;
+		
+		if (designatorObj.equals(Tab.noObj)) {
+			// Error will already be reported
+		}
+		else if (designatorObj.getKind() != Obj.Meth) {
+			report_error(String.format(
+					"Attemp to call a non-method '%s'", designatorObj.getName()), designatorStatement);
+		} 
+		else if (designatorStatement.getCallPars().struct.equals(Tab.noType)) {
+			report_error("Invalid call parameters", designatorStatement);
+		}
+		/*
+		else if (currentMethod != null && factor.getDesignator().obj.equals(currentMethod)) {
+			report_error("Direct recursion is not allowed", factor);
+			factor.struct = Tab.noType;
+		}
+		*/
+		else {
+			// Check parameters, but be careful because of 'this' in class methods
+			
+			int paramCount = designatorObj.getLevel();
+			Obj[] params = designatorObj.getLocalSymbols()
+					.toArray(new Obj[designatorObj.getLocalSymbols().size()]);
+			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			
+			paramCount -= (isClassMethod ? 1 : 0);
+			
+			Struct[] args = designatorStatement.getCallPars().struct.getImplementedInterfaces()
+					.toArray(new Struct[designatorStatement.getCallPars().struct.getImplementedInterfaces().size()]);
+			
+			if (paramCount != args.length) {
+				report_error(String.format(
+						"Number of arguments doesn't match the number of parameters for method '%s'", 
+						designatorObj.getName()), designatorStatement);
+			} 
+			else {
+				boolean valid = true;
+				for (int i = 0; i < paramCount; i++) {
+					if (!SymbolTableUtils.assignableTo(params[i + (isClassMethod ? 1 : 0)].getType(), args[i])) {
+						valid = false;
+						break;
+					}
+				}
+				
+				if (!valid) {
+					report_error(String.format(
+							"Argument types do not match the parameter types for method '%s'", 
+							designatorObj.getName()), designatorStatement);
+				}
+			}			
+		}
+	}
+	
+	// TODO: DesignatorStatement_AssignSetop
+	
+	@Override
+	public void visit(DoToken doToken) {
+		loopCount++;
+	}
+	
+	@Override
+	public void visit(Statement_DoWhileTrue statement) {
+		loopCount--;
+	}
+	
+	@Override
+	public void visit(Statement_DoWhileCondition statement) {
+		loopCount--;
+	}
+	
+	@Override
+	public void visit(Statement_DoWhileConditionWithDesignatorStatement statement) {
+		loopCount--;
+	}
+	
+	@Override
+	public void visit(Statement_Break statement) {
+		if (loopCount == 0) {
+			report_error("Break statement can only be used inside of the loop", statement);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_Continue statement) {
+		if (loopCount == 0) {
+			report_error("Continue statement can only be used inside of the loop", statement);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_Read statement) {
+		Obj statementObj = statement.getDesignator().obj;
+		
+		if (statementObj.getKind() != Obj.Var && statementObj.getKind() != Obj.Elem &&
+				statementObj.getKind() != Obj.Fld) {
+			report_error(String.format("Attemp to read into a non variable '%s'", statementObj.getName()), statement);
+		}
+		else if (!statementObj.getType().equals(Tab.intType) && !statementObj.getType().equals(Tab.charType)
+				&& !statementObj.getType().equals(SymbolTableUtils.boolType)) {
+			report_error(String.format(
+					"Attemp to read into a variable '%s' of a non-compatible type", statementObj.getName()), statement);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_PrintExpr statement) {
+		Struct exprStruct = statement.getExpr().struct;
+		
+		// TODO: Add support for sets
+		if (!exprStruct.equals(Tab.intType) && !exprStruct.equals(Tab.charType) &&
+				!exprStruct.equals(SymbolTableUtils.boolType)) {
+			report_error("Attemp to print a variable of a non-compatible type", statement);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_ReturnExpr statement) {
+		if (currentMethod != null && !currentMethod.getType().equals(statement.getExpr().struct)) {
+			report_error(String.format(
+					"Return value's type doesn't match the return type of method '%s'", currentMethod.getName()), statement);
+		}
+		else {
+			methodReturned = true;
+		}
+	}
+	
+	@Override
+	public void visit(Statement_ReturnVoid statement) {
+		if (currentMethod != null && !currentMethod.getType().equals(Tab.noType)) {
+			report_error(String.format("Non-void method '%s' has to return a value", currentMethod.getName()), statement);
+		}
+		else {
+			methodReturned = true;
 		}
 	}
 }

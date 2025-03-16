@@ -1,6 +1,8 @@
 package rs.ac.bg.etf.pp1;
 
+import java.lang.reflect.Member;
 import java.security.PublicKey;
+import java.security.cert.CertificateNotYetValidException;
 import java.util.Collection;
 
 import javax.print.attribute.standard.JobKOctets;
@@ -268,24 +270,40 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (tempObj != null) {
 			if (tempObj.getKind() != Obj.Meth || currentClass == null || 
-					tempObj.getFpPos() == MethodTypes.REGULAR.value) {
+					(tempObj.getFpPos() != MethodTypes.CLASS_INHERITED.value && 
+					tempObj.getFpPos() != MethodTypes.INTERFACE_INHERITED.value)) {
 				report_error(String.format("Multiple definitions of the name '%s'", methodName.getI1()), methodName);
-			} 
-			else if (tempObj.getFpPos() == MethodTypes.INHERITED.value) {
+			}
+			else {
 				// Method overriding
 				
-				// TODO: This way, return type cannot be overridden because you cannot set Obj's Type
-				currentMethod = tempObj;
-				currentMethod.setFpPos(MethodTypes.REGULAR.value);
-				Tab.openScope();
-				Obj thisParamObj = Tab.insert(Obj.Var, "this", currentClass.getType());
-				thisParamObj.setFpPos(paramCount++);
+				if (!currentType.equals(tempObj.getType())) {
+					report_error(String.format("Attemp to override a return type for method '%s'", methodName.getI1()), methodName);
+				}
+				else {
+					currentMethod = tempObj;
+					if (tempObj.getFpPos() == MethodTypes.CLASS_INHERITED.value) {
+						currentMethod.setFpPos(MethodTypes.OVERRIDDEN.value);
+					}
+					Tab.openScope();
+					Obj thisParamObj = Tab.insert(Obj.Var, "this", currentClass.getType());
+					thisParamObj.setFpPos(paramCount++);
+				}
 			}
-			// TODO: Handle interface methods
 		}
 		else {
 			currentMethod = Tab.insert(Obj.Meth, methodName.getI1(), currentType);
-			currentMethod.setFpPos(MethodTypes.REGULAR.value);
+			
+			if (currentInterface != null) {
+				currentMethod.setFpPos(MethodTypes.INTERFACE_REGULAR.value);
+			}
+			else if (currentClass != null) {
+				currentMethod.setFpPos(MethodTypes.CLASS_REGULAR.value);
+			}
+			else {
+				currentMethod.setFpPos(MethodTypes.REGULAR.value);
+			}
+			
 			Tab.openScope();
 			
 			if (currentClass != null) {
@@ -327,14 +345,47 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		if (!currentMethod.getType().equals(Tab.noType) && !methodReturned) {
 			report_error(String.format(
 					"Non-void method '%s' must contain a return statement", currentMethod.getName()), methodDecl);
-		} 
+		}
 		
 		// Do this even if no return method is detected, so that the analyzing can continue correctly
 		currentMethod.setLevel(paramCount);
 		Tab.chainLocalSymbols(currentMethod);
 		Tab.closeScope();
+		
+		if (currentMethod.getFpPos() == MethodTypes.OVERRIDDEN.value) {
+			// Check if it was overridden correctly
+			Obj baseMethod = currentClass.getType().getElemType().getMembersTable().searchKey(currentMethod.getName());
+			
+			if (baseMethod.getLevel() != currentMethod.getLevel()) {
+				report_error(String.format(
+						"Overriden method '%s' must have the same signature as the base method", 
+						currentMethod.getName()), methodDecl);
+			}
+			else {
+				Obj[] baseMethodLocals = baseMethod.getLocalSymbols().toArray(new Obj[baseMethod.getLocalSymbols().size()]);
+				Obj[] currentMethodLocals = currentMethod.getLocalSymbols().toArray(new Obj[currentMethod.getLocalSymbols().size()]);
+				for (int i = 1; i < currentMethod.getLevel(); i++) {
+					if (!baseMethodLocals[i].getType().equals(currentMethodLocals[i].getType())) {
+						report_error(String.format(
+								"Parameters of overridden method '%s' must not be changed", currentMethod.getName()), methodDecl);
+						break;
+					}
+				}
+			}
+		}
+		
+		if (currentMethod.getFpPos() == MethodTypes.CLASS_INHERITED.value ||
+				currentMethod.getFpPos() == MethodTypes.OVERRIDDEN.value) {
+			// Class inherited methods become regular class methods and can be overridden again in derived class
+			currentMethod.setFpPos(MethodTypes.CLASS_REGULAR.value);
+		}
+		else if (currentMethod.getFpPos() == MethodTypes.INTERFACE_INHERITED.value) {
+			// They stay interface_inherited, they can be redefined in derived classes
+		}
+		
 		currentMethod = null;
 		paramCount = 0;
+		methodReturned = false;
 	}
 	
 	@Override
@@ -428,20 +479,31 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				}
 				else {
 					int cnt = member.getLevel() - 1;
-					for (Obj param : member.getLocalSymbols()) {
-						if (!methodObj.getLocalSymbols().contains(param)) {
-							report_error(String.format("Interface method %s' signature must not be changed", member.getName()), classDecl);
-							break;
+					if (cnt > 0) {
+						for (Obj param : member.getLocalSymbols()) {
+							if (!methodObj.getLocalSymbols().contains(param)) {
+								report_error(String.format("Signature of the interface method '%s' must not be changed", member.getName()), classDecl);
+								break;
+							}
+							
+							if (--cnt == 0) break;
 						}
-						
-						if (--cnt == 0) break;
 					}
+					methodObj.setFpPos(MethodTypes.INTERFACE_INHERITED.value);
 				}
 			}
 		}
 		
 		currentClass.getType().setMembers(Tab.currentScope.getLocals());
 		Tab.closeScope();
+		
+		// Set method types for class methods that were inherited but not overridden to regular		
+		for (Obj member : currentClass.getType().getMembers()) {
+			if (member.getKind() == Obj.Meth && member.getFpPos() == MethodTypes.CLASS_INHERITED.value) {
+				member.setFpPos(MethodTypes.CLASS_REGULAR.value);
+			}
+		}
+		
 		currentClass = null;
 	}
 	
@@ -451,6 +513,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		currentClass.getType().setMembers(Tab.currentScope.getLocals());
 		Tab.closeScope();
+		
+		// Set method types for class methods that were inherited but not overridden to regular		
+		for (Obj member : currentClass.getType().getMembers()) {
+			if (member.getKind() == Obj.Meth && member.getFpPos() == MethodTypes.CLASS_INHERITED.value) {
+				member.setFpPos(MethodTypes.CLASS_REGULAR.value);
+			}
+		}
+		
 		currentClass = null;
 	}
 	
@@ -470,7 +540,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				// Create copy of method object
 				Obj methodObj = Tab.insert(Obj.Meth, member.getName(), member.getType());
 				methodObj.setLevel(member.getLevel());
-				methodObj.setFpPos(MethodTypes.INHERITED.value);
+				methodObj.setFpPos(MethodTypes.CLASS_INHERITED.value);
 				
 				// Copy method parameters, and change the type of 'this' parameter to the type of the current class
 				SymbolDataStructure copiedLocals = new HashTableDataStructure();
@@ -490,14 +560,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		for (Struct interfaceSruct : currentClass.getType().getImplementedInterfaces()) {
 			// Add default interface method, and include 'this' parameter
 			for (Obj member: interfaceSruct.getMembers()) {
-				if (member.getFpPos() != MethodTypes.REGULAR.value) {
+				if (member.getFpPos() != MethodTypes.INTERFACE_REGULAR.value) {
 					continue;
 				}
 				
 				// Create copy of method object
 				Obj methodObj = Tab.insert(Obj.Meth, member.getName(), member.getType());
 				methodObj.setLevel(member.getLevel()); 
-				methodObj.setFpPos(MethodTypes.INHERITED.value);
+				methodObj.setFpPos(MethodTypes.INTERFACE_INHERITED.value);
 				
 				// Copy method parameters, and change the type of 'this' parameter to the type of the current class
 				SymbolDataStructure copiedLocals = new HashTableDataStructure();
@@ -565,7 +635,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			return;
 		}
 		
-		currentMethod.setFpPos(MethodTypes.NOT_IMPLEMENTED.value);
+		currentMethod.setFpPos(MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
 		currentMethod.setLevel(paramCount);
 		Tab.chainLocalSymbols(currentMethod);
 		Tab.closeScope();
@@ -607,8 +677,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else if (currentObj.getKind() != Obj.Elem && currentObj.getKind() != Obj.Fld &&
 				currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Meth ||
-				currentObj.getType().getKind() != Struct.Class) {
-			report_error(String.format("Access to a memeber of a non-class type", designator.getI2()), designator);
+				(currentObj.getType().getKind() != Struct.Class && currentObj.getType().getKind() != Struct.Interface)) {
+			report_error(String.format("Access to a memeber of a non-complex type", designator.getI2()), designator);
 			designator.obj = Tab.noObj;
 		}
 		else {
@@ -714,9 +784,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			int paramCount = factor.getDesignator().obj.getLevel();
 			Obj[] params = factor.getDesignator().obj.getLocalSymbols()
 					.toArray(new Obj[factor.getDesignator().obj.getLocalSymbols().size()]);
-			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			/*
+			 * Also check for INTERFACE_REGULAR and INTERFACE_NOT_IMPLEMENTED because method can be called
+			 * on object which has interface type at compile time
+			 */
+			boolean hasThisParam = (factor.getDesignator().obj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
+					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
+					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
+					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
 			
-			paramCount -= (isClassMethod ? 1 : 0);
+			paramCount -= (hasThisParam ? 1 : 0);
 			
 			Struct[] args = factor.getCallPars().struct.getImplementedInterfaces()
 					.toArray(new Struct[factor.getCallPars().struct.getImplementedInterfaces().size()]);
@@ -730,7 +807,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			else {
 				boolean valid = true;
 				for (int i = 0; i < paramCount; i++) {
-					if (!SymbolTableUtils.assignableTo(params[i + (isClassMethod ? 1 : 0)].getType(), args[i])) {
+					if (!SymbolTableUtils.assignableTo(params[i + (hasThisParam ? 1 : 0)].getType(), args[i])) {
 						valid = false;
 						break;
 					}
@@ -846,10 +923,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			int paramCount = leftObj.getLevel();
 			Obj[] params = leftObj.getLocalSymbols()
 					.toArray(new Obj[leftObj.getLocalSymbols().size()]);
-			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			boolean hasThisParam = (leftObj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
+					leftObj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
+					leftObj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
+					leftObj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
 			
-			if (!(!isClassMethod && paramCount == 1 && params[0].getType().equals(Tab.intType)) &&
-					!(isClassMethod && paramCount == 2 && params[1].getType().equals(Tab.intType))) {
+			if (!(!hasThisParam && paramCount == 1 && params[0].getType().equals(Tab.intType)) &&
+					!(hasThisParam && paramCount == 2 && params[1].getType().equals(Tab.intType))) {
 				report_error("Left operand of 'map' operator must be method with a single integer parameter", expr);
 				expr.struct = Tab.noType;
 			}
@@ -1004,9 +1084,12 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			int paramCount = designatorObj.getLevel();
 			Obj[] params = designatorObj.getLocalSymbols()
 					.toArray(new Obj[designatorObj.getLocalSymbols().size()]);
-			boolean isClassMethod = (paramCount > 0 && params[0].getName().equals("this"));
+			boolean hasThisParam = (designatorObj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
+					designatorObj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
+					designatorObj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
+					designatorObj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
 			
-			paramCount -= (isClassMethod ? 1 : 0);
+			paramCount -= (hasThisParam ? 1 : 0);
 			
 			Struct[] args = designatorStatement.getCallPars().struct.getImplementedInterfaces()
 					.toArray(new Struct[designatorStatement.getCallPars().struct.getImplementedInterfaces().size()]);
@@ -1019,7 +1102,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			else {
 				boolean valid = true;
 				for (int i = 0; i < paramCount; i++) {
-					if (!SymbolTableUtils.assignableTo(params[i + (isClassMethod ? 1 : 0)].getType(), args[i])) {
+					if (!SymbolTableUtils.assignableTo(params[i + (hasThisParam ? 1 : 0)].getType(), args[i])) {
 						valid = false;
 						break;
 					}
@@ -1100,7 +1183,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(Statement_ReturnExpr statement) {
 		if (currentMethod != null && !currentMethod.getType().equals(statement.getExpr().struct)) {
 			report_error(String.format(
-					"Return value's type doesn't match the return type of method '%s'", currentMethod.getName()), statement);
+					"Type of return value doesn't match the return type of method '%s'", currentMethod.getName()), statement);
 		}
 		else {
 			methodReturned = true;

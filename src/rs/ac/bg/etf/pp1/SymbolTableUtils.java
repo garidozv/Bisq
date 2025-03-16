@@ -7,9 +7,13 @@ import rs.etf.pp1.symboltable.concepts.Struct;
 public final class SymbolTableUtils {
 	
 	public enum MethodTypes {
-		REGULAR(-2),
-		INHERITED(-3),
-		NOT_IMPLEMENTED(-4);
+		REGULAR(-2), // Global method
+		CLASS_REGULAR(-3), // Regular class method
+		INTERFACE_REGULAR(-4), // Interface method with body
+		INTERFACE_NOT_IMPLEMENTED(-5), // Interface method without body
+		CLASS_INHERITED(-6), // Class method inherited from another class
+		INTERFACE_INHERITED(-7), // Class method inherited from interface
+		OVERRIDDEN(-8); // Overridden class method
 		
 		public final int value;
 		

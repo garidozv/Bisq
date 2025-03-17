@@ -177,9 +177,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		} 
 		// Constants can only be of int, char, and bool values, so equals() is sufficient
 		else if (!currentType.equals(type)) {
-			report_error(String.format(
-					"Assignment of incompatible types: '%s' to '%s'", 
-					SymbolTableUtils.getTypeName(type), SymbolTableUtils.getTypeName(currentType)), node);
+			report_error("Assignment of incompatible types", node);
 		} 
 		else {
 			Obj newConstObj = Tab.insert(Obj.Con, name, type);

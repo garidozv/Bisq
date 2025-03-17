@@ -40,7 +40,6 @@ public class UpdatedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 			}
 			break;
 		case Struct.Enum:
-			// TODO: Update this when set representation is decided
 			output.append("Set");
 			break;
 		case Struct.Class:

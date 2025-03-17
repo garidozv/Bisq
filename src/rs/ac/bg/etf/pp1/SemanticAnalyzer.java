@@ -30,6 +30,7 @@ import rs.ac.bg.etf.pp1.ast.ConstAssign_Char;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Num;
 import rs.ac.bg.etf.pp1.ast.ConstDecl;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Dec;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Inc;
@@ -85,6 +86,7 @@ import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 import rs.etf.pp1.symboltable.structure.SymbolDataStructure;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
+import rs.ac.bg.etf.pp1.ast.Statement_PrintExprWithNum;
 import rs.ac.bg.etf.pp1.ast.Statement_Read;
 import rs.ac.bg.etf.pp1.ast.Statement_ReturnExpr;
 import rs.ac.bg.etf.pp1.ast.Statement_ReturnVoid;
@@ -245,6 +247,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", varName.getI1()), varName);
 		} 
+		else if (currentType.equals(SymbolTableUtils.setType)) {
+			report_error("Array of sets is not supported", varName);
+		}
 		else if (currentInterface != null) {
 			Struct arrayType = new Struct(Struct.Array, currentType);
 			tempObj = Tab.insert(Obj.Var, varName.getI1(), arrayType);
@@ -409,6 +414,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", formParVar.getI2()), formParVar);
+		}
+		else if (currentType.equals(SymbolTableUtils.setType)) {
+			report_error("Array of sets is not supported", formParVar);
 		}
 		else {
 			Struct arrayType = new Struct(Struct.Array, currentType);
@@ -828,7 +836,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewArray factor) {
-		// TODO: Add support for sets
 		if (currentType == null) {
 			// Error will already be reported
 			factor.struct = Tab.noType;
@@ -836,6 +843,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		else if (!factor.getExpr().struct.equals(Tab.intType)) {
 			report_error("Array creation with a non-integer size value", factor);
 			factor.struct = Tab.noType;
+		}
+		else if (currentType.equals(SymbolTableUtils.setType)) {
+			factor.struct = currentType;
 		}
 		else {
 			factor.struct = new Struct(Struct.Array, currentType);
@@ -1117,7 +1127,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 	}
 	
-	// TODO: DesignatorStatement_AssignSetop
+	@Override
+	public void visit(DesignatorStatement_AssignSetop designatorStatement) {
+		if (!designatorStatement.getDesignator1().obj.getType().equals(SymbolTableUtils.setType) ||
+				!designatorStatement.getDesignator2().obj.getType().equals(SymbolTableUtils.setType)) {
+			report_error("Both operands of the set operator must be of set type", designatorStatement);
+		}
+		else if (!designatorStatement.getDesignator().obj.getType().equals(SymbolTableUtils.setType)) {
+			report_error("Result of the set operator can only be assigned to a varible of set type", designatorStatement);
+		}
+	}
 	
 	@Override
 	public void visit(DoToken doToken) {
@@ -1169,12 +1188,21 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	@Override
+	public void visit(Statement_PrintExprWithNum statement) {
+		Struct exprStruct = statement.getExpr().struct;
+		
+		if (!exprStruct.equals(Tab.intType) && !exprStruct.equals(Tab.charType) &&
+				!exprStruct.equals(SymbolTableUtils.boolType) && !exprStruct.equals(SymbolTableUtils.setType)) {
+			report_error("Attemp to print a variable of a non-compatible type", statement);
+		}
+	}
+	
+	@Override
 	public void visit(Statement_PrintExpr statement) {
 		Struct exprStruct = statement.getExpr().struct;
 		
-		// TODO: Add support for sets
 		if (!exprStruct.equals(Tab.intType) && !exprStruct.equals(Tab.charType) &&
-				!exprStruct.equals(SymbolTableUtils.boolType)) {
+				!exprStruct.equals(SymbolTableUtils.boolType) && !exprStruct.equals(SymbolTableUtils.setType)) {
 			report_error("Attemp to print a variable of a non-compatible type", statement);
 		}
 	}

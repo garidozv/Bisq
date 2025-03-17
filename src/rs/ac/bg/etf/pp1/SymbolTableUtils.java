@@ -6,6 +6,8 @@ import rs.etf.pp1.symboltable.concepts.Struct;
 
 public final class SymbolTableUtils {
 	
+	
+	
 	public enum MethodTypes {
 		REGULAR(-2), // Global method
 		CLASS_REGULAR(-3), // Regular class method
@@ -22,6 +24,8 @@ public final class SymbolTableUtils {
 		}
 	}
 	
+	// Enum is used for sets
+	public static final Struct setType = new Struct(Struct.Enum);	
 	public static final Struct boolType = new Struct(Struct.Bool);
 	
 	public static boolean assignableTo(Struct dest, Struct src) {

@@ -1,10 +1,12 @@
 package rs.ac.bg.etf.pp1;
 
+import java.io.ObjectOutput;
+
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.visitors.DumpSymbolTableVisitor;
 
-public class UpdatedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
+public class ExtendedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 	
 	@Override
 	public void visitStructNode(Struct structToVisit) {
@@ -43,18 +45,32 @@ public class UpdatedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 			output.append("Set");
 			break;
 		case Struct.Class:
-			output.append("Class ").append(structToVisit.getNumberOfFields()).append(" [ ");
+			output.append("Class ").append(structToVisit.getNumberOfFields()).append(" [");
+			boolean isPrevMethod = false;
+			currentIndent.append(indent);
 			for (Obj obj : structToVisit.getMembers()) {
+				if (!isPrevMethod) output.append('\n');
+				output.append(currentIndent.toString());
 				obj.accept(this);
+				if (obj.getKind() == Obj.Meth) isPrevMethod = true;
+				else isPrevMethod = false;
 			}
 			output.append("]");
+			previousIndentationLevel();
 			break;
 		case Struct.Interface:
-			output.append("Interface ").append(structToVisit.getNumberOfFields()).append(" [ ");
+			output.append("Interface ").append(structToVisit.getNumberOfFields()).append(" [");
+			currentIndent.append(indent);
+			isPrevMethod = false;
 			for (Obj obj : structToVisit.getMembers()) {
+				if (!isPrevMethod) output.append('\n');
+				output.append(currentIndent.toString());
 				obj.accept(this);
+				if (obj.getKind() == Obj.Meth) isPrevMethod = true;
+				else isPrevMethod = false;
 			}
 			output.append("]");
+			previousIndentationLevel();
 			break;
 		}
 	}

@@ -63,7 +63,7 @@ terminal Boolean BOOL;
 
 nonterminal 
 	Setop, Relop, Mulop, Addop, Assignop, Label, DoToken, CondTerm,
-	DesignatorStatement, Statement, Type, FormPars, Condition,
+	DesignatorStatement, Statement, FormPars, Condition,
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
@@ -74,7 +74,8 @@ nonterminal rs.etf.pp1.symboltable.concepts.Obj
 	Designator;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
-	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact;
+	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,
+	Type;
 	
 precedence left ELSE;
 

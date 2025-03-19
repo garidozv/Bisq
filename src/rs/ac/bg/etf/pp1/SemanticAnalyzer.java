@@ -102,9 +102,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private int paramCount = 0;	
 	private int loopCount = 0;
 	private boolean methodReturned = false;
+	private boolean hasMain = false;
 	
 	boolean errorDetected = false;
-	private boolean hasMain = false;
+	int nVars = 0;
 	
 	private Logger log = Logger.getLogger(getClass());
 
@@ -133,8 +134,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Program program) {
+		nVars = Tab.currentScope.getnVars();
 		Tab.chainLocalSymbols(programObj);
 		Tab.closeScope();
+		programObj = null;
 		
 		if (!hasMain) {
 			report_error("Parameterless void method 'main' was not defined", program);
@@ -161,9 +164,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		else {
 			currentType = tempObj.getType();
 		}
+		
+		type.struct = currentType;
 	}
 	
-	// TODO: Modify declarations to work with class and interface types
 	// TODO: Check for multilevel inheritance?
 	
 	// Constant declarations
@@ -602,7 +606,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	 * Default interface methods are copied into class that implements the interface
 	 * And after the class definition is completed, we check if method signature was changed
 	 * Because that is not allowed for default interface methods
-	 * TODO: Check: Method locals are not part of the signature
 	 * 
 	 * Interface method declarations are not copied into class
 	 * After the class definition is completed, we check if these methods were defined
@@ -852,7 +855,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		// TODO: Add support for constructors
 		if (currentType == null) {
 			// Error will already be reported
 			factor.struct = Tab.noType;

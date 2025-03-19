@@ -33,7 +33,7 @@ public class Compiler {
 		
 		Reader br = null;
 		try {
-			File sourceCode = new File("test/test_program.mj");
+			File sourceCode = new File("test/gen_program.mj");
 			log.info("Compiling source file: " + sourceCode.getAbsolutePath());
 			
 			// Lexical analysis
@@ -65,10 +65,10 @@ public class Compiler {
 			if (!parser.errorDetected && semAnalyzer.passed()) {
 				File objFile = new File("test/program.obj");
 				if(objFile.exists()) objFile.delete();
-				
+
 				CodeGenerator codeGenerator = new CodeGenerator();
 				programNode.traverseBottomUp(codeGenerator);
-				//Code.dataSize = semAnalyzer.nVars;
+				Code.dataSize = semAnalyzer.nVars;
 				Code.mainPc = codeGenerator.getMainPc();
 				Code.write(new FileOutputStream(objFile));
 

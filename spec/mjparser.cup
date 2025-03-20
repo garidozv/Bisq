@@ -67,11 +67,11 @@ nonterminal
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
-	ProgramName, Program, ProgramDeclList, MethodName, MethodReturnType,
+	ProgramName, Program, ProgramDeclList, MethodReturnType,
 	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
-	Designator;
+	Designator, MethodName;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
 	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,

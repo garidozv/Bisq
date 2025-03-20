@@ -323,6 +323,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				paramCount++;
 			}
 		}
+		
+		methodName.obj = currentMethod;
 	}
 	
 	@Override

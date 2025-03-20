@@ -8,6 +8,7 @@ import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
+import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Dec;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Inc;
 import rs.ac.bg.etf.pp1.ast.Designator_ArrayAccess;
@@ -43,7 +44,8 @@ import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
 public class CodeGenerator extends VisitorAdaptor {
-
+	
+	private final static int VarSize = 4;
 	private int mainPc;
 	
 	public int getMainPc(){
@@ -75,7 +77,10 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
-		// TODO
+		// Parameters are already on expression stack
+		int offset = factor.getDesignator().obj.getAdr() - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
 	}
 	
 	@Override
@@ -93,7 +98,8 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Factor_NewObject factor) {
 		Code.put(Code.new_);
-		Code.put2(factor.getType().struct.getNumberOfFields() * 4);
+		int varSize;
+		Code.put2(factor.getType().struct.getNumberOfFields() * VarSize);
 	}
 	
 	@Override
@@ -144,6 +150,19 @@ public class CodeGenerator extends VisitorAdaptor {
 		if (designator.obj.getType().getKind() == Struct.Array &&
 			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
 			Code.load(designator.obj);
+		}
+	}
+	
+	@Override
+	public void visit(DesignatorStatement_Call designatorStatement) {
+		// Parameters are already on expression stack
+		int offset = designatorStatement.getDesignator().obj.getAdr() - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
+		
+		// If method returns a value it's never used, so we have to clean the expression stack
+		if (!designatorStatement.getDesignator().obj.getType().equals(Tab.noType)) {
+			Code.put(Code.pop);
 		}
 	}
 	
@@ -220,5 +239,39 @@ public class CodeGenerator extends VisitorAdaptor {
 			Code.put(Code.read);
 		}
 		Code.store(statement.getDesignator().obj);
+	}
+	
+	@Override
+	public void visit(MethodName methodName) {
+		methodName.obj.setAdr(Code.pc);
+		
+		if (methodName.obj.getName().equalsIgnoreCase("main") &&
+				methodName.obj.getType().equals(Tab.noType) && methodName.obj.getLevel() == 0) {
+			// Main method
+			mainPc = Code.pc;
+		}
+		
+		Code.put(Code.enter);
+		Code.put(methodName.obj.getLevel());
+		Code.put(methodName.obj.getLocalSymbols().size());
+	}
+	
+	@Override
+	public void visit(MethodDecl methodDecl) {
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+	}
+	
+	@Override
+	public void visit(Statement_ReturnVoid statement) {
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+	}
+	
+	@Override
+	public void visit(Statement_ReturnExpr statement) {
+		// Return value is already on expression stack
+		Code.put(Code.exit);
+		Code.put(Code.return_);
 	}
 }

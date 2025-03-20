@@ -1,5 +1,6 @@
 package rs.ac.bg.etf.pp1;
 
+import java.beans.MethodDescriptor;
 import java.nio.charset.CharacterCodingException;
 
 import java_cup.internal_error;
@@ -23,9 +24,16 @@ import rs.ac.bg.etf.pp1.ast.Factor_Expr;
 import rs.ac.bg.etf.pp1.ast.Factor_NewArray;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.Factor_NumConst;
+import rs.ac.bg.etf.pp1.ast.MethodDecl;
+import rs.ac.bg.etf.pp1.ast.MethodName;
 import rs.ac.bg.etf.pp1.ast.Mulop_Div;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mod;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mul;
+import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
+import rs.ac.bg.etf.pp1.ast.Statement_PrintExprWithNum;
+import rs.ac.bg.etf.pp1.ast.Statement_Read;
+import rs.ac.bg.etf.pp1.ast.Statement_ReturnExpr;
+import rs.ac.bg.etf.pp1.ast.Statement_ReturnVoid;
 import rs.ac.bg.etf.pp1.ast.Term_Factor;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
@@ -121,35 +129,6 @@ public class CodeGenerator extends VisitorAdaptor {
 		// TODO
 	}
 	
-	/*
-	 * class A { int a[] }
-	 * int b, c[]; A d, e[]; // locals (doesn't matter)
-	 * 
-	 * 1.	b	Factor_Designator -> Designator_Ident
-	 * 		load b_addr
-	 * 
-	 * 2.	c[3]	Factor_Designator -> Designator_ArrayAccess -> Designator_Ident + Expr
-	 * 		load c_addr
-	 * 		const_3
-	 * 		aload
-	 * 
-	 * 3.	d.a[2]	Factor_Designator -> Designator_ArrayAccess -> 
-	 * 				{Designator_MemberAccess -> Designator_Ident + IDENT} + Expr
-	 * 		load d_addr
-	 * 		getfield a_addr
-	 * 		const_2
-	 * 		aload
-	 * 
-	 * 4.	e[3].a[1]	Factor_Designator -> Designator_ArrayAccess -> 
-	 * 					{Designator_MemberAccess -> {Designator_ArrayAccess -> Designator_Ident + Expr} + IDENT} + Expr
-	 * 		load e_addr
-	 * 		const_3
-	 * 		aload
-	 * 		load a_addr
-	 * 	 	const_1
-	 * 		aload
-	 */
-	
 	@Override
 	public void visit(Designator_Ident designator) {
 		if (designator.obj.getType().getKind() == Struct.Array && 
@@ -206,5 +185,40 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(DesignatorStatement_AssignSetop designatorStatement) {
 		// TODO
+	}
+	
+	// TODO: Add support for sets to print methods
+	
+	@Override
+	public void visit(Statement_PrintExpr statement) {
+		Code.loadConst(0);
+		if (statement.getExpr().struct.equals(Tab.charType)) {
+			Code.put(Code.bprint);
+		}
+		else {
+			Code.put(Code.print);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_PrintExprWithNum statement) {
+		Code.loadConst(statement.getN2());
+		if (statement.getExpr().struct.equals(Tab.charType)) {
+			Code.put(Code.bprint);
+		}
+		else {
+			Code.put(Code.print);
+		}
+	}
+	
+	@Override
+	public void visit(Statement_Read statement) {
+		if (statement.getDesignator().obj.getType().equals(Tab.charType)) {
+			Code.put(Code.bread);
+		}
+		else {
+			Code.put(Code.read);
+		}
+		Code.store(statement.getDesignator().obj);
 	}
 }

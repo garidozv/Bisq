@@ -1,11 +1,18 @@
 package rs.ac.bg.etf.pp1;
 
+import java.awt.BufferCapabilities.FlipContents;
 import java.beans.MethodDescriptor;
+import java.io.Console;
 import java.nio.charset.CharacterCodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 import java_cup.internal_error;
+import rs.ac.bg.etf.pp1.ast.Type;
 import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
+import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
+import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
@@ -30,6 +37,8 @@ import rs.ac.bg.etf.pp1.ast.MethodName;
 import rs.ac.bg.etf.pp1.ast.Mulop_Div;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mod;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mul;
+import rs.ac.bg.etf.pp1.ast.ProgramDeclList;
+import rs.ac.bg.etf.pp1.ast.ProgramDeclarations;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExprWithNum;
 import rs.ac.bg.etf.pp1.ast.Statement_Read;
@@ -46,13 +55,23 @@ import rs.etf.pp1.symboltable.concepts.Struct;
 public class CodeGenerator extends VisitorAdaptor {
 	
 	private final static int VarSize = 4;
-	private int mainPc;
+	private int mainJumpAddr;
+	private int dataSize;
+	private int startPc;
+	private List<Obj> classTypes = new ArrayList<Obj>();
 	
-	public int getMainPc(){
-		return mainPc;
+	public int getStartPc() {
+		return startPc;
 	}
-	
-	
+
+	public int getDataSize() {
+		return dataSize;
+	}
+
+	public void setDataSize(int dataSize) {
+		this.dataSize = dataSize;
+	}
+
 	@Override
 	public void visit(Factor_NumConst factor) {
 		Code.loadConst(factor.getN1());
@@ -247,8 +266,8 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		if (methodName.obj.getName().equalsIgnoreCase("main") &&
 				methodName.obj.getType().equals(Tab.noType) && methodName.obj.getLevel() == 0) {
-			// Main method
-			mainPc = Code.pc;
+			// Main method - patch the jump to main method
+			Code.fixup(mainJumpAddr + 1);
 		}
 		
 		Code.put(Code.enter);
@@ -273,5 +292,60 @@ public class CodeGenerator extends VisitorAdaptor {
 		// Return value is already on expression stack
 		Code.put(Code.exit);
 		Code.put(Code.return_);
+	}
+	
+	@Override
+	public void visit(ClassDecl_Derived classDecl) {
+		classTypes.add(classDecl.obj);
+	}
+	
+	@Override
+	public void visit(ClassDecl_NonDerived classDecl) {
+		classTypes.add(classDecl.obj);
+	}
+	
+	@Override
+	public void visit(ProgramDeclarations programDeclarations) {
+		// Initialize virtual tables
+		startPc = Code.pc;
+		
+		for (Obj classType : classTypes) {
+			generateVirtualTable(classType);
+		}
+		/*
+		 * After initializing virtual tables, we have to jump to the main method
+		 * Since we don't know the address of main method at this point
+		 * we will add a jmp instruction, which we will patch later on
+		 */
+		mainJumpAddr = Code.pc; 
+		Code.put(Code.jmp);
+		Code.pc += 2; // 2 bytes for missing argument
+	}
+	
+	private void addToStaticMemory(int value) {
+		Code.loadConst(value);
+		Code.put(Code.putstatic);
+		Code.put2(dataSize++);
+	}
+	
+	private void generateVirtualTable(Obj classObj) {
+		List<Obj> methods = classObj.getType().getMembers()
+				.stream().filter(obj -> obj.getKind() == Obj.Meth).toList();
+		
+		if (methods.size() == 0) return;
+		
+		// Set start address of the virtual table
+		classObj.setAdr(dataSize);
+		
+		for (Obj method : methods) {
+			for (char c : method.getName().toCharArray()) {
+				addToStaticMemory(c);
+			}
+			addToStaticMemory(-1);
+			addToStaticMemory(method.getAdr());
+		}
+		
+		// End of virtual table marker
+		addToStaticMemory(-2);
 	}
 }

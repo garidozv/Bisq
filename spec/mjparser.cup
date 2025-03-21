@@ -65,13 +65,13 @@ nonterminal
 	Setop, Relop, Mulop, Addop, Assignop, Label, DoToken, CondTerm,
 	DesignatorStatement, Statement, FormPars, Condition,
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
-	InterfaceBody, ClassDecl, ClassBody, MethodDeclList, VarDecl,
+	InterfaceBody, ClassBody, MethodDeclList, VarDecl, ProgramDeclarations,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType,
 	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
-	Designator, MethodName;
+	Designator, MethodName, ClassDecl;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
 	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,
@@ -79,11 +79,14 @@ nonterminal rs.etf.pp1.symboltable.concepts.Struct
 	
 precedence left ELSE;
 
-Program ::= (Program) PROGRAM ProgramName ProgramDeclList LBRACE MethodDeclList RBRACE
+Program ::= (Program) PROGRAM ProgramName ProgramDeclarations LBRACE MethodDeclList RBRACE
 			;
 			
 ProgramName ::=	(ProgramName) IDENT
 				;
+				
+ProgramDeclarations ::= (ProgramDeclarations) ProgramDeclList
+						;
 
 ProgramDeclList ::=	(ProgramDeclList_ConstDecl) ProgramDeclList ConstDecl
 					|

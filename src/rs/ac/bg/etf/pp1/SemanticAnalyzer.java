@@ -94,6 +94,8 @@ import rs.ac.bg.etf.pp1.ast.DoToken;
 
 public class SemanticAnalyzer extends VisitorAdaptor {
 	
+	private final static String VritualMethodTableName = "__vtp";
+	
 	private Obj programObj = null;
 	private Struct currentType = null;
 	private Obj currentMethod = null;
@@ -447,6 +449,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			currentType = new Struct(Struct.Class);
 			currentClass = Tab.insert(Obj.Type, className.getI1(), currentType);
 			Tab.openScope();
+			Tab.insert(Obj.Fld, SemanticAnalyzer.VritualMethodTableName, Tab.intType);	// Virtual method table address
 		}
 	}
 	
@@ -516,6 +519,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			}
 		}
 		
+		classDecl.obj = currentClass;
 		currentClass = null;
 	}
 	
@@ -533,6 +537,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			}
 		}
 		
+		classDecl.obj = currentClass;
 		currentClass = null;
 	}
 	
@@ -681,7 +686,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(Designator_MemberAccess designator) {
 		Obj currentObj = designator.getDesignator().obj;
 		
-		if (currentObj == Tab.noObj) {
+		if (designator.getI2().equals(SemanticAnalyzer.VritualMethodTableName)) {
+			report_error("Access to compiler generate fields is not allowed", designator);
+			designator.obj = Tab.noObj;
+		}
+		else if (currentObj == Tab.noObj) {
 			// Error will already be reported
 			// report_error("Access to undefined variable ", designator);
 			designator.obj = Tab.noObj;

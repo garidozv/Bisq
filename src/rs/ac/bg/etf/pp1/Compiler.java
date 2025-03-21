@@ -67,9 +67,10 @@ public class Compiler {
 				if(objFile.exists()) objFile.delete();
 
 				CodeGenerator codeGenerator = new CodeGenerator();
+				codeGenerator.setDataSize(semAnalyzer.nVars);
 				programNode.traverseBottomUp(codeGenerator);
-				Code.dataSize = semAnalyzer.nVars;
-				Code.mainPc = codeGenerator.getMainPc();
+				Code.dataSize = codeGenerator.getDataSize();
+				Code.mainPc = codeGenerator.getStartPc();
 				Code.write(new FileOutputStream(objFile));
 
 				log.info("Program successfully generated!");

@@ -1,5 +1,7 @@
 package rs.ac.bg.etf.pp1;
 
+import java.lang.classfile.Signature.BaseTypeSig;
+
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
@@ -75,10 +77,12 @@ public final class SymbolTableUtils {
 			return true;
 		}
 		
-		// Does not support multilevel inheritance (we only check inherited class of src)
-		if (dest.getKind() == Struct.Class && src.getKind() == Struct.Class &&
-				src.getElemType() != null && src.getElemType() == dest) {
-			return true;
+		if (dest.getKind() == Struct.Class && src.getKind() == Struct.Class) {
+			Struct baseType = src.getElemType();
+			while (baseType != null) {
+				if (baseType == dest) return true;
+				baseType = baseType.getElemType();
+			}
 		}
 		
 		return false;

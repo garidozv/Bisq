@@ -460,6 +460,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		if (currentType.getKind() == Struct.Class) {
 			currentClass.getType().setElementType(currentType);
 			
+			// Add implemented interfaces
+			for (Struct interfaceStruct : currentType.getImplementedInterfaces()) {
+				currentClass.getType().addImplementedInterface(interfaceStruct);
+			}
+			
 			// Add fields from extended class
 			for (Obj member: currentType.getMembers()) {
 				if (member.getKind() == Obj.Meth) {

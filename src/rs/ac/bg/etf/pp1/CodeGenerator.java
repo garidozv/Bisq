@@ -5,10 +5,12 @@ import java.beans.MethodDescriptor;
 import java.io.Console;
 import java.nio.charset.CharacterCodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import java_cup.internal_error;
 import rs.ac.bg.etf.pp1.ast.Type;
+import rs.ac.bg.etf.pp1.SymbolTableUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
@@ -59,6 +61,8 @@ public class CodeGenerator extends VisitorAdaptor {
 	private int dataSize;
 	private int startPc;
 	private List<Obj> classTypes = new ArrayList<Obj>();
+	private HashMap<Struct, Integer> virtualTableAddressMap = new HashMap<Struct, Integer>();
+	private Obj currentClassDesignator = null;
 	
 	public int getStartPc() {
 		return startPc;
@@ -97,9 +101,30 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
 		// Parameters are already on expression stack
-		int offset = factor.getDesignator().obj.getAdr() - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
+		Obj methodObj = factor.getDesignator().obj;
+		if (methodObj.getFpPos() == MethodTypes.REGULAR.value) {
+			// Global method
+			int offset = methodObj.getAdr() - Code.pc;
+			Code.put(Code.call);
+			Code.put2(offset);
+		}
+		else {
+			// Class method
+			Struct classType = methodObj.getLocalSymbols().stream().findFirst().get().getType();
+			if (currentClassDesignator == null) {
+				Code.put(Code.load_n + 0);
+			}
+			else {
+				Code.load(currentClassDesignator);
+			}
+			Code.put(Code.getfield);
+			Code.put2(0);
+			Code.put(Code.invokevirtual);
+			for (char c : methodObj.getName().toCharArray()) {
+				Code.put4(c);
+			}
+			Code.put4(-1);
+		}
 	}
 	
 	@Override
@@ -117,8 +142,13 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Factor_NewObject factor) {
 		Code.put(Code.new_);
-		int varSize;
 		Code.put2(factor.getType().struct.getNumberOfFields() * VarSize);
+		
+		// Set virtual table pointer
+		Code.put(Code.dup);
+		Code.loadConst(virtualTableAddressMap.get(factor.getType().struct));
+		Code.put(Code.putfield);
+		Code.put2(0);
 	}
 	
 	@Override
@@ -156,6 +186,16 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Designator_Ident designator) {
+		if (designator.getI1().equals("this") || designator.obj.getKind() == Obj.Fld ||
+				designator.obj.getKind() == Obj.Meth && designator.obj.getFpPos() != MethodTypes.REGULAR.value) {
+			// Get 'this' argument
+			currentClassDesignator = null;
+			Code.put(Code.load_n + 0);
+		}
+		else {
+			currentClassDesignator = designator.obj;
+		}
+		
 		if (designator.obj.getType().getKind() == Struct.Array && 
 			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
 			Code.load(designator.obj);
@@ -164,8 +204,10 @@ public class CodeGenerator extends VisitorAdaptor {
 
 	@Override
 	public void visit(Designator_MemberAccess designator) {
-		Code.load(designator.getDesignator().obj);
-		
+		if (!designator.getDesignator().obj.getName().equals("this")) {
+			Code.load(designator.getDesignator().obj);
+		}
+
 		if (designator.obj.getType().getKind() == Struct.Array &&
 			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
 			Code.load(designator.obj);
@@ -175,12 +217,27 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {
 		// Parameters are already on expression stack
-		int offset = designatorStatement.getDesignator().obj.getAdr() - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
+		Obj methodObj = designatorStatement.getDesignator().obj;
+		if (methodObj.getFpPos() == MethodTypes.REGULAR.value) {
+			// Global method
+			int offset = methodObj.getAdr() - Code.pc;
+			Code.put(Code.call);
+			Code.put2(offset);
+		}
+		else {
+			// Class method
+			Struct classType = methodObj.getLocalSymbols().stream().findFirst().get().getType();
+			Code.loadConst(virtualTableAddressMap.get(classType));
+			Code.put(Code.invokevirtual);
+			for (char c : methodObj.getName().toCharArray()) {
+				Code.put4(c);
+			}
+			Code.put4(-1);
+		}
+		
 		
 		// If method returns a value it's never used, so we have to clean the expression stack
-		if (!designatorStatement.getDesignator().obj.getType().equals(Tab.noType)) {
+		if (!methodObj.getType().equals(Tab.noType)) {
 			Code.put(Code.pop);
 		}
 	}
@@ -335,7 +392,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		if (methods.size() == 0) return;
 		
 		// Set start address of the virtual table
-		classObj.setAdr(dataSize);
+		virtualTableAddressMap.put(classObj.getType(), dataSize);
 		
 		for (Obj method : methods) {
 			for (char c : method.getName().toCharArray()) {

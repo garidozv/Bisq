@@ -1,4 +1,4 @@
-# mJCompiler
+# Bisq Compiler
 
 A compiler for a Java-like language.
 It is a statically-typed programming language with support for object-oriented and procedural programming concepts.

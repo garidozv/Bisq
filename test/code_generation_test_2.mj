@@ -1,0 +1,53 @@
+// Test301
+
+program test301
+
+const bool flag = true;
+
+int num;
+	
+{	
+	void dummyAdd(set a, int b) int n; {
+		n = len(a);
+		
+		
+	}
+	
+	void main() int a, b, c, d, arr1[], arr2[];	
+	{
+		num = 8;
+		a = 3; b = 4; c = 4; d = 6;
+		arr1 = new int[5];
+		arr2 = arr1;
+		
+		if (a > b) {
+			print('a');
+		} else {
+			if (b <= c && d == 6 && flag == false) {
+				print('b');
+			} else {
+				if (c + 2 > d || arr1 != arr2) {
+					print('c');
+				} else {
+					a = 10;
+					
+					do {
+						if (a % 2 == 0) continue;
+						else {
+							b = a;
+							do {
+								print(b, 2);
+								if (b == 0) break;
+								b--;
+							} while ();
+							print(eol);
+						}
+					} while (a > 0, a--);
+				}
+			}
+		}
+		
+	}
+}
+
+

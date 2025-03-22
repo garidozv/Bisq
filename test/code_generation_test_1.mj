@@ -1,0 +1,93 @@
+// Test301
+
+program test301
+
+const bool o = false;
+
+int arr[];
+
+class N { 
+	int n; 
+	{
+		int meth1() { return 1;}
+		int meth2() { return 2;}
+	} 
+}
+
+class A {
+	int a[];
+	int x;
+	N m;
+	{
+		void setX(int a) int c; { c = 10 + 13; }
+		int getX() { return 1; }
+	}
+}
+
+class B extends A {
+	{
+		void setX(int a) { return; }
+		int getX() int x; { x = 7; this.x = 6; return this.x; }
+	}
+}
+
+class C extends B {
+	{
+		int getNum() { return 10; }
+		int getX() {
+			return getNum() + this.getNum();
+		}
+	}
+}
+	
+{
+
+	int test(int b) { return b + 10; }
+	int add4(int a, int b, int c, int d) { return a + b + c + d; }
+	
+	void main() int a; char h, f[]; A temp, semp, lemp;	
+	{
+		a = 2;
+		a++;
+		a--;
+		
+		test(a);
+		
+		arr = new int[10];
+		
+		read(arr[0]);
+		arr[0]++;
+		
+		print(test(arr[0]), 2);
+		print(add4(1, 2, 3, 4), 10);
+		
+		temp = new A();
+		semp = temp;
+		temp.a = arr;
+		temp.x = temp.getX();
+		
+		print(temp.getX(), 2);
+		semp = new B();
+		semp.x = 8;
+		print(semp.getX(), 2);
+		lemp = new C();
+		print(lemp.getX(), 3);
+		
+		temp.x++;
+		temp.a[0]--;
+		
+		temp.m = new N();
+		temp.m.n = 2;
+		temp.a = new int[2];
+		temp.a[0] = 9;
+		arr[3] = temp.a[1] + temp.m.n;
+		
+		print(arr[3], 3);
+		
+		f = new char[6];
+		f[4] = 'b';
+		h = f[4];
+	}
+}
+
+

@@ -22,8 +22,7 @@ import rs.ac.bg.etf.pp1.ast.ClassFields;
 import rs.ac.bg.etf.pp1.ast.ClassName;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
-import rs.ac.bg.etf.pp1.ast.CondTerm_AndCondFact;
-import rs.ac.bg.etf.pp1.ast.CondTerm_CondFact;
+import rs.ac.bg.etf.pp1.ast.CondTermList_CondFact;
 import rs.ac.bg.etf.pp1.ast.ConstAssign;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Bool;
 import rs.ac.bg.etf.pp1.ast.ConstAssign_Char;
@@ -1033,7 +1032,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	@Override
-	public void visit(CondTerm_CondFact condTerm) {
+	public void visit(CondTermList_CondFact condTerm) {
 		if (!condTerm.getCondFact().struct.equals(SymbolTableUtils.boolType)) {
 			report_error("Logical operators cannot be applied to non-boolean operators", condTerm);
 		}

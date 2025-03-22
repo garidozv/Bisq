@@ -63,12 +63,13 @@ terminal Boolean BOOL;
 
 nonterminal 
 	Setop, Relop, Mulop, Addop, Assignop, Label, DoToken, CondTerm,
-	DesignatorStatement, Statement, FormPars, Condition,
+	DesignatorStatement, Statement, FormPars, Condition, ElseToken,
 	MethodDecl, StatementList, VarDeclList, MethodSignature, InterfaceDecl,
 	InterfaceBody, ClassBody, MethodDeclList, VarDecl, ProgramDeclarations,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
-	ProgramName, Program, ProgramDeclList, MethodReturnType,
-	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName;
+	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
+	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName,
+	ConditionList, CondTermList;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
 	Designator, MethodName, ClassDecl;
@@ -207,7 +208,7 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
 				(Statement_If) IF LPAREN Condition RPAREN Statement
 				|
-				(Statement_IfElse) IF LPAREN Condition RPAREN Statement ELSE Statement
+				(Statement_IfElse) IF LPAREN Condition RPAREN Statement ElseToken Statement
 				|
 				(Statement_Break) BREAK SEMI
 				|
@@ -223,13 +224,19 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
 				(Statement_PrintExprWithNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
 				|
-				(Statement_DoWhileTrue) DoToken Statement WHILE LPAREN RPAREN SEMI
+				(Statement_DoWhileTrue) DoToken Statement WhileToken LPAREN RPAREN SEMI
 				|
-				(Statement_DoWhileCondition) DoToken Statement WHILE LPAREN Condition RPAREN SEMI
+				(Statement_DoWhileCondition) DoToken Statement WhileToken LPAREN Condition RPAREN SEMI
 				|
-				(Statement_DoWhileConditionWithDesignatorStatement) DoToken Statement WHILE LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
+				(Statement_DoWhileConditionWithDesignatorStatement) DoToken Statement WhileToken LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
 				|
 				(Statement_Block) LBRACE StatementList RBRACE
+				;
+				
+ElseToken ::=	(ElseToken) ELSE
+				;
+				
+WhileToken ::=	(WhileToken) WHILE
 				;
 				
 DoToken ::=	(DoToken) DO
@@ -257,15 +264,21 @@ ActPars ::=	(ActPars_Expr) Expr
 			;
 			
 
-Condition ::= 	(Condition_CondTerm) CondTerm
-				|
-				(Condition_OrCondTerm) Condition OR CondTerm
+Condition ::= 	(Condition) ConditionList
+				;
+				
+ConditionList ::=	(ConditionList_CondTerm) CondTerm
+					|
+					(ConditionList_OrCondTerm) ConditionList OR CondTerm
+					;
+
+CondTerm ::= 	(CondTerm) CondTermList
 				;
 
-CondTerm ::= 	(CondTerm_CondFact) CondFact
-				|
-				(CondTerm_AndCondFact) CondTerm AND CondFact
-				;
+CondTermList ::= 	(CondTermList_CondFact) CondFact
+					|
+					(CondTermList_AndCondFact) CondTermList AND CondFact
+					;
 				
 				
 CondFact ::=	(CondFact_Expr) Expr 

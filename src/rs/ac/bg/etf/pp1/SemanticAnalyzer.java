@@ -321,7 +321,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			}
 			
 			if (currentInterface != null) {
-				paramCount++;
+				Obj thisParamObj = Tab.insert(Obj.Var, "this", currentInterface.getType());
+				thisParamObj.setFpPos(paramCount++);
 			}
 		}
 		
@@ -364,23 +365,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (currentMethod.getFpPos() == MethodTypes.OVERRIDDEN.value) {
 			// Check if it was overridden correctly
-			Obj baseMethod = currentClass.getType().getElemType().getMembersTable().searchKey(currentMethod.getName());
+			Obj baseMethod = currentClass.getType().getElemType().getMembersTable()
+					.searchKey(currentMethod.getName());
 			
-			if (baseMethod.getLevel() != currentMethod.getLevel()) {
+			if (!hasMatchingSignature(baseMethod, currentMethod)) {
 				report_error(String.format(
-						"Overriden method '%s' must have the same signature as the base method", 
+						"Parameters of overridden method '%s' must not be changed",
 						currentMethod.getName()), methodDecl);
-			}
-			else {
-				Obj[] baseMethodLocals = baseMethod.getLocalSymbols().toArray(new Obj[baseMethod.getLocalSymbols().size()]);
-				Obj[] currentMethodLocals = currentMethod.getLocalSymbols().toArray(new Obj[currentMethod.getLocalSymbols().size()]);
-				for (int i = 1; i < currentMethod.getLevel(); i++) {
-					if (!baseMethodLocals[i].getType().equals(currentMethodLocals[i].getType())) {
-						report_error(String.format(
-								"Parameters of overridden method '%s' must not be changed", currentMethod.getName()), methodDecl);
-						break;
-					}
-				}
 			}
 		}
 		
@@ -396,6 +387,59 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		currentMethod = null;
 		paramCount = 0;
 		methodReturned = false;
+	}
+	
+	// Checks if a method can be called with given arguments
+	private static boolean isCallableWith(Obj method, Struct argsStruct) {
+		// Take this parameter into account, if method is not global
+		boolean hasThisParam = method.getFpPos() != MethodTypes.REGULAR.value;
+		int explicitParamCnt = method.getLevel() - (hasThisParam ? 1 : 0);
+		
+		if (explicitParamCnt != argsStruct.getImplementedInterfaces().size()) {
+			return false;
+		}
+		
+		var params = method.getLocalSymbols().stream()
+				.skip(hasThisParam ? 1 : 0)
+				.limit(explicitParamCnt)
+				.map(o -> o.getType())
+				.toArray(Struct[]::new);
+		
+		var args = argsStruct.getImplementedInterfaces()
+				.toArray(Struct[]::new);
+		
+		for (int i = 0; i < explicitParamCnt; i++) {
+			if (!params[i].equals(args[i])) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+	
+	// Checks if the signatures (excludes return type) of passed methods match
+	private static boolean hasMatchingSignature(Obj firstMethod, Obj secondMethod) {
+		if (firstMethod.getLevel() != secondMethod.getLevel()) {
+			return false;
+		}
+		
+		int explicitParamCnt = firstMethod.getLevel() - 1;
+		var firstMethodParams = firstMethod.getLocalSymbols().stream()
+				.skip(1) // Skip this param
+				.limit(explicitParamCnt)
+				.toArray(Obj[]::new);
+		
+		var secondMethodParams = secondMethod.getLocalSymbols().stream()
+				.skip(1) // Skip this param
+				.limit(explicitParamCnt) 
+				.toArray(Obj[]::new);
+		
+		for (int i = 0; i < explicitParamCnt; i++) {
+			if (!firstMethodParams[i].getType().equals(secondMethodParams[i].getType())) {
+				return false;
+			}
+		}
+		return true;
 	}
 	
 	@Override
@@ -493,20 +537,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				if (methodObj == null) {
 					report_error(String.format("Interface method '%s' must be implemented", member.getName()), classDecl);
 				} 
-				else if (methodObj.getLevel() != member.getLevel()) {
-					report_error(String.format("Interface method '%s' signature must not be changed", member.getName()), classDecl);
-				}
 				else {
-					int cnt = member.getLevel() - 1;
-					if (cnt > 0) {
-						for (Obj param : member.getLocalSymbols()) {
-							if (!methodObj.getLocalSymbols().contains(param)) {
-								report_error(String.format("Signature of the interface method '%s' must not be changed", member.getName()), classDecl);
-								break;
-							}
-							
-							if (--cnt == 0) break;
-						}
+					if (!hasMatchingSignature(methodObj, member)) {
+						report_error(String.format(
+								"Signature of the interface method '%s' must not be changed", 
+								member.getName()), classDecl);
 					}
 					methodObj.setFpPos(MethodTypes.INTERFACE_INHERITED.value);
 				}
@@ -803,50 +838,15 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		*/
 		else {
-			// Check parameters, but be careful because of 'this' in class methods
-			
-			int paramCount = factor.getDesignator().obj.getLevel();
-			Obj[] params = factor.getDesignator().obj.getLocalSymbols()
-					.toArray(new Obj[factor.getDesignator().obj.getLocalSymbols().size()]);
-			/*
-			 * Also check for INTERFACE_REGULAR and INTERFACE_NOT_IMPLEMENTED because method can be called
-			 * on object which has interface type at compile time
-			 */
-			boolean hasThisParam = (factor.getDesignator().obj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
-					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
-					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
-					factor.getDesignator().obj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
-			
-			paramCount -= (hasThisParam ? 1 : 0);
-			
-			Struct[] args = factor.getCallPars().struct.getImplementedInterfaces()
-					.toArray(new Struct[factor.getCallPars().struct.getImplementedInterfaces().size()]);
-			
-			if (paramCount != args.length) {
+			if (!isCallableWith(factor.getDesignator().obj, factor.getCallPars().struct)) {
 				report_error(String.format(
-						"Number of arguments doesn't match the number of parameters for method '%s'", 
+						"Passed arguments do not match the parameters of the method '%s'",
 						factor.getDesignator().obj.getName()), factor);
 				factor.struct = Tab.noType;
-			} 
+			}
 			else {
-				boolean valid = true;
-				for (int i = 0; i < paramCount; i++) {
-					if (!SymbolTableUtils.assignableTo(params[i + (hasThisParam ? 1 : 0)].getType(), args[i])) {
-						valid = false;
-						break;
-					}
-				}
-				
-				if (!valid) {
-					report_error(String.format(
-							"Argument types do not match the parameter types for method '%s'", 
-							factor.getDesignator().obj.getName()), factor);
-					factor.struct = Tab.noType;
-				}
-				else {
-					factor.struct = factor.getDesignator().obj.getType();
-				}
-			}			
+				factor.struct = factor.getDesignator().obj.getType();
+			}
 		}
 	}
 	
@@ -930,6 +930,26 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		expr.struct = expr.getExprList().struct;
 	}
 	
+	private static boolean isMapCompatibleMethod(Obj method) {
+		boolean hasThisParam = method.getFpPos() != MethodTypes.REGULAR.value;
+		int explicitParmCnt = method.getLevel() - (hasThisParam ? 1 : 0);
+		
+		if (explicitParmCnt != 1) {
+			return false;
+		}
+		
+		var firstParamType = method.getLocalSymbols().stream()
+				.skip(hasThisParam ? 1 : 0)
+				.findFirst()
+				.get().getType();
+		
+		if (!firstParamType.equals(Tab.intType)) {
+			return false;
+		}
+		
+		return true;
+	}
+	
 	@Override
 	public void visit(Expr_Map expr) {
 		Obj leftObj = expr.getDesignator().obj, righObj = expr.getDesignator1().obj;
@@ -944,23 +964,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error("Left operand of 'map' operator must be method with integer return type", expr);
 			expr.struct = Tab.noType;
 		}
+		else if (!isMapCompatibleMethod(leftObj)) {
+			report_error(
+				"Left operand of 'map' operator must be method with a single integer parameter", expr);
+			expr.struct = Tab.noType;
+		}
 		else {
-			int paramCount = leftObj.getLevel();
-			Obj[] params = leftObj.getLocalSymbols()
-					.toArray(new Obj[leftObj.getLocalSymbols().size()]);
-			boolean hasThisParam = (leftObj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
-					leftObj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
-					leftObj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
-					leftObj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
-			
-			if (!(!hasThisParam && paramCount == 1 && params[0].getType().equals(Tab.intType)) &&
-					!(hasThisParam && paramCount == 2 && params[1].getType().equals(Tab.intType))) {
-				report_error("Left operand of 'map' operator must be method with a single integer parameter", expr);
-				expr.struct = Tab.noType;
-			}
-			else {
-				expr.struct = Tab.intType;
-			}
+			expr.struct = Tab.intType;
 		}
 	}
 	
@@ -1104,41 +1114,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		*/
 		else {
-			// Check parameters, but be careful because of 'this' in class methods
-			
-			int paramCount = designatorObj.getLevel();
-			Obj[] params = designatorObj.getLocalSymbols()
-					.toArray(new Obj[designatorObj.getLocalSymbols().size()]);
-			boolean hasThisParam = (designatorObj.getFpPos() == MethodTypes.CLASS_REGULAR.value ||
-					designatorObj.getFpPos() == MethodTypes.INTERFACE_INHERITED.value ||
-					designatorObj.getFpPos() == MethodTypes.INTERFACE_REGULAR.value ||
-					designatorObj.getFpPos() == MethodTypes.INTERFACE_NOT_IMPLEMENTED.value);
-			
-			paramCount -= (hasThisParam ? 1 : 0);
-			
-			Struct[] args = designatorStatement.getCallPars().struct.getImplementedInterfaces()
-					.toArray(new Struct[designatorStatement.getCallPars().struct.getImplementedInterfaces().size()]);
-			
-			if (paramCount != args.length) {
+			if (!isCallableWith(designatorObj, designatorStatement.getCallPars().struct)) {
 				report_error(String.format(
-						"Number of arguments doesn't match the number of parameters for method '%s'", 
-						designatorObj.getName()), designatorStatement);
-			} 
-			else {
-				boolean valid = true;
-				for (int i = 0; i < paramCount; i++) {
-					if (!SymbolTableUtils.assignableTo(params[i + (hasThisParam ? 1 : 0)].getType(), args[i])) {
-						valid = false;
-						break;
-					}
-				}
-				
-				if (!valid) {
-					report_error(String.format(
-							"Argument types do not match the parameter types for method '%s'", 
-							designatorObj.getName()), designatorStatement);
-				}
-			}			
+						"Passed arguments do not match the parameters of the method '%s'",
+						designatorObj), designatorStatement);
+			}
 		}
 	}
 	

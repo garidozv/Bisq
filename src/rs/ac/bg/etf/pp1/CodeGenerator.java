@@ -98,7 +98,46 @@ public class CodeGenerator extends VisitorAdaptor {
 	private Stack<LinkedList<Integer>> continueJumpsStack = new Stack<LinkedList<Integer>>();
 	private Stack<LinkedList<Integer>> breakJumpsStack = new Stack<LinkedList<Integer>>();
 	private Stack<Integer> elseJumpStack = new Stack<Integer>();
-	private Stack<Integer> doAddrStack = new Stack<Integer>(); 
+	private Stack<Integer> doAddrStack = new Stack<Integer>();
+	
+	private void generatePreDefinedMethods() {
+		// chr(n)
+		Obj chrObj = Tab.find("chr");
+		chrObj.setAdr(Code.pc);
+		Code.put(Code.enter);
+		Code.put(1);
+		Code.put(1);
+		Code.put(Code.load_n);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// ord(c)
+		Obj ordObj = Tab.find("ord");
+		chrObj.setAdr(Code.pc);
+		Code.put(Code.enter);
+		Code.put(1);
+		Code.put(1);
+		Code.put(Code.load_n);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// len(arr)
+		Obj lenObj = Tab.find("len");
+		chrObj.setAdr(Code.pc);
+		Code.put(Code.enter);
+		Code.put(1);
+		Code.put(1);
+		Code.put(Code.load_n);
+		Code.put(Code.arraylength);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// TODO: set methods
+	}
+	
+	public CodeGenerator() {
+		generatePreDefinedMethods();
+	}
 	
 	public int getStartPc() {
 		return startPc;
@@ -215,6 +254,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		}
 	}
 	
+	
 	@Override
 	public void visit(Expr_Map expr) {
 		// TODO
@@ -241,6 +281,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Designator_MemberAccess designator) {
 		if (!designator.getDesignator().obj.getName().equals("this")) {
+			// If field or class method, load it (object addr is already loaded)
 			Code.load(designator.getDesignator().obj);
 		}
 

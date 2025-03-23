@@ -28,6 +28,10 @@ public final class SymbolTableUtils {
 	public static void init() {
 		Tab.init();
 		
+		Tab.find("ord").setFpPos(MethodTypes.GLOBAL.value);
+		Tab.find("chr").setFpPos(MethodTypes.GLOBAL.value);
+		Tab.find("len").setFpPos(MethodTypes.GLOBAL.value);
+		
 		Obj boolTypeObj = Tab.insert(Obj.Type, "bool", SymbolTableUtils.boolType);
 		boolTypeObj.setAdr(-1);
 		boolTypeObj.setLevel(-1);
@@ -49,6 +53,7 @@ public final class SymbolTableUtils {
 		addMethodObj.setLocals(addMethodLocals);
 		addMethodObj.setAdr(0);
 		addMethodObj.setLevel(2);
+		addMethodObj.setFpPos(MethodTypes.GLOBAL.value);
 		
 		Obj addAllMethodObj = Tab.insert(Obj.Meth, "addAll", Tab.noType);
 		HashTableDataStructure addAllMethodLocals = new HashTableDataStructure();
@@ -63,6 +68,7 @@ public final class SymbolTableUtils {
 		addAllMethodObj.setLocals(addAllMethodLocals);
 		addAllMethodObj.setAdr(0);
 		addAllMethodObj.setLevel(2);
+		addAllMethodObj.setFpPos(MethodTypes.GLOBAL.value);
 	}
 	
 	public static boolean assignableTo(Struct dest, Struct src) {

@@ -114,7 +114,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		// ord(c)
 		Obj ordObj = Tab.find("ord");
-		chrObj.setAdr(Code.pc);
+		ordObj.setAdr(Code.pc);
 		Code.put(Code.enter);
 		Code.put(1);
 		Code.put(1);
@@ -124,7 +124,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		// len(arr)
 		Obj lenObj = Tab.find("len");
-		chrObj.setAdr(Code.pc);
+		lenObj.setAdr(Code.pc);
 		Code.put(Code.enter);
 		Code.put(1);
 		Code.put(1);

@@ -10,6 +10,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
+import javax.print.ServiceUIFactory;
+
 import java_cup.internal_error;
 import rs.ac.bg.etf.pp1.ast.Type;
 import rs.ac.bg.etf.pp1.SymbolTableUtils.MethodTypes;
@@ -90,7 +92,6 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	private List<Obj> classTypes = new ArrayList<Obj>();
 	private HashMap<Struct, Integer> virtualTableAddressMap = new HashMap<Struct, Integer>();
-	private Obj currentClassDesignator = null;
 	
 	// Fields used for conditions and conditional statements
 	private LinkedList<Integer> condTermTerminationJumps = new LinkedList<Integer>();
@@ -179,19 +180,15 @@ public class CodeGenerator extends VisitorAdaptor {
 		Obj methodObj = factor.getDesignator().obj;
 		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method
+			
 			int offset = methodObj.getAdr() - Code.pc;
 			Code.put(Code.call);
 			Code.put2(offset);
 		}
 		else {
 			// Class method
-			Struct classType = methodObj.getLocalSymbols().stream().findFirst().get().getType();
-			if (currentClassDesignator == null) {
-				Code.put(Code.load_n + 0);
-			}
-			else {
-				Code.load(currentClassDesignator);
-			}
+			
+			factor.getDesignator().traverseBottomUp(this);
 			Code.put(Code.getfield);
 			Code.put2(0);
 			Code.put(Code.invokevirtual);
@@ -264,12 +261,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	public void visit(Designator_Ident designator) {
 		if (designator.getI1().equals("this") || designator.obj.getKind() == Obj.Fld ||
 				designator.obj.getKind() == Obj.Meth && designator.obj.getFpPos() != MethodTypes.GLOBAL.value) {
-			// Get 'this' argument
-			currentClassDesignator = null;
 			Code.put(Code.load_n + 0);
-		}
-		else {
-			currentClassDesignator = designator.obj;
 		}
 		
 		if (designator.obj.getType().getKind() == Struct.Array && 
@@ -297,20 +289,26 @@ public class CodeGenerator extends VisitorAdaptor {
 		Obj methodObj = designatorStatement.getDesignator().obj;
 		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method
+			
 			int offset = methodObj.getAdr() - Code.pc;
 			Code.put(Code.call);
 			Code.put2(offset);
 		}
 		else {
 			// Class method
-			Struct classType = methodObj.getLocalSymbols().stream().findFirst().get().getType();
-			Code.loadConst(virtualTableAddressMap.get(classType));
+			
+			designatorStatement.getDesignator().traverseBottomUp(this);
+			Code.put(Code.getfield);
+			Code.put2(0);
+			
 			Code.put(Code.invokevirtual);
 			for (char c : methodObj.getName().toCharArray()) {
 				Code.put4(c);
 			}
 			Code.put4(-1);
 		}
+		
+		
 		
 		
 		// If method returns a value it's never used, so we have to clean the expression stack

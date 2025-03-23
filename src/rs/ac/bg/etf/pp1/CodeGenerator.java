@@ -177,7 +177,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	public void visit(Factor_DesignatorCall factor) {
 		// Parameters are already on expression stack
 		Obj methodObj = factor.getDesignator().obj;
-		if (methodObj.getFpPos() == MethodTypes.REGULAR.value) {
+		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method
 			int offset = methodObj.getAdr() - Code.pc;
 			Code.put(Code.call);
@@ -263,7 +263,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Designator_Ident designator) {
 		if (designator.getI1().equals("this") || designator.obj.getKind() == Obj.Fld ||
-				designator.obj.getKind() == Obj.Meth && designator.obj.getFpPos() != MethodTypes.REGULAR.value) {
+				designator.obj.getKind() == Obj.Meth && designator.obj.getFpPos() != MethodTypes.GLOBAL.value) {
 			// Get 'this' argument
 			currentClassDesignator = null;
 			Code.put(Code.load_n + 0);
@@ -295,7 +295,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	public void visit(DesignatorStatement_Call designatorStatement) {
 		// Parameters are already on expression stack
 		Obj methodObj = designatorStatement.getDesignator().obj;
-		if (methodObj.getFpPos() == MethodTypes.REGULAR.value) {
+		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method
 			int offset = methodObj.getAdr() - Code.pc;
 			Code.put(Code.call);

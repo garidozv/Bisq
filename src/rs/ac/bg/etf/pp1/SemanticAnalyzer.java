@@ -323,8 +323,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		 *  belongs to top scope upon its creation
 		 */
 		if (currentMethod.getLevel() == 0 && currentMethod.getName().equalsIgnoreCase("main") &&
+			currentMethod.getFpPos() == MethodTypes.GLOBAL.value &&
 			currentMethod.getType() == Tab.noType && paramCount == 0) {
-			hasMain = true;
+			if (hasMain) {
+				report_error("Multiple definitions of the main method", methodDecl);
+			} else {
+				hasMain = true;
+			}
 		}
 		
 		if (!currentMethod.getType().equals(Tab.noType) && !methodReturned) {
@@ -336,7 +341,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		currentMethod.setLevel(paramCount);
 		Tab.chainLocalSymbols(currentMethod);
 		Tab.closeScope();
-		
+
 		currentMethod = null;
 		paramCount = 0;
 		methodReturned = false;
@@ -362,7 +367,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				.toArray(Struct[]::new);
 		
 		for (int i = 0; i < explicitParamCnt; i++) {
-			if (!params[i].equals(args[i])) {
+			if (!SymbolTableUtils.assignableTo(params[i], args[i])) {
 				return false;
 			}
 		}

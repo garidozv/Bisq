@@ -434,6 +434,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		methodNameObj.setAdr(Code.pc);
 		
 		if (methodNameObj.getName().equalsIgnoreCase("main") &&
+				methodNameObj.getFpPos() == MethodTypes.GLOBAL.value &&
 				methodNameObj.getType().equals(Tab.noType) && methodNameObj.getLevel() == 0) {
 			// Main method - patch the jump to main method
 			Code.fixup(mainJumpAddr + 1);

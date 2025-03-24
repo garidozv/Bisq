@@ -7,7 +7,9 @@
 				<exclude name="util/Log4JUtils.java"/>
 				<exclude name="SemanticAnalyzer.java"/>
 				<exclude name="SymbolTableUtils.java"/>
-				<exclude name="UpdatedDumpSymbolTableVisitor.java"/>
+				<exclude name="Compiler.java"/>
+				<exclude name="ExtendedDumpSymbolTableVisitor.java"/>
+				<exclude name="CodeGenerator.java"/>
 				<!--exclude name="Yylex.java"/-->
 			</fileset>
 		</delete>
@@ -44,7 +46,7 @@
 			<arg value="src.rs.ac.bg.etf.pp1.ast"/>
 			<arg value="-parser"/>
 			<arg value="MJParser"/>
-			<arg value="-dump_states"/>
+			<!--arg value="-dump_states"/-->
 			<arg value="-buildtree"/>
 			<arg value="spec/mjparser.cup"/>
 		</java>
@@ -61,18 +63,18 @@
 			</classpath>
 		</java>
 	</target>
-	<target name="runObj" depends="debugObj">
-		<java classname="rs.etf.pp1.mj.runtime.Run">
+	<target name="runObj">
+		<java classname="rs.etf.pp1.mj.runtime.Run" input="test/input.txt">
 			<arg value="test/program.obj"/>
-			<arg value="-debug"/>
 			<classpath>
 				<pathelement location="lib/mj-runtime-1.1.jar"/>
 			</classpath>
 		</java>
 	</target>
 	<target name="debugObj" depends="disasm">
-		<java classname="rs.etf.pp1.mj.runtime.Run">
+		<java classname="rs.etf.pp1.mj.runtime.Run" input="test/input.txt">
 			<arg value="test/program.obj"/>
+			<arg value="-debug"/>
 			<classpath>
 				<pathelement location="lib/mj-runtime-1.1.jar"/>
 			</classpath>

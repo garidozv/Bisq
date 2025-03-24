@@ -82,6 +82,7 @@ import rs.ac.bg.etf.pp1.ast.VarName_NonArray;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
+import rs.etf.pp1.symboltable.concepts.Scope;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 import rs.etf.pp1.symboltable.structure.SymbolDataStructure;
@@ -111,6 +112,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	int nVars = 0;
 	
 	private Logger log = Logger.getLogger(getClass());
+
+	private Scope programScope;
 
 	public void report_error(String message, SyntaxNode info) {
 		errorDetected = true;
@@ -151,6 +154,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(ProgramName programName) {
 		programObj = Tab.insert(Obj.Prog, programName.getI1(), Tab.noType);
 		Tab.openScope();
+		programScope = Tab.currentScope;
 		
 		// Reserve space for two global variables used to store temporary values for 'map' statements
 		Tab.currentScope.addToLocals(new Obj(Obj.Var, "", Tab.noType));
@@ -178,8 +182,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	// Constant declarations
 	
 	private void constAssign(String name, Struct type, int value, SyntaxNode node) {
-		// Maybe universe scope should be checked as well?
-		Obj tempObj = Tab.currentScope.findSymbol(name);
+		var returnedObj = Tab.find(name);
+		var tempObj = returnedObj.equals(Tab.noObj) ? null : returnedObj;
 		
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", name), node);
@@ -226,8 +230,15 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(VarName_NonArray varName) {
-		// Maybe universe scope should be checked as well?
-		Obj tempObj = Tab.currentScope.findSymbol(varName.getI1());
+		Obj tempObj;
+		if (Tab.currentScope.equals(programScope)) {
+			// Global variable - check universe scope as well
+			var returnedObj = Tab.find(varName.getI1());
+			tempObj = returnedObj.equals(Tab.noObj) ? null : returnedObj;
+		}
+		else {
+			tempObj = Tab.currentScope.findSymbol(varName.getI1());
+		}
 		
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", varName.getI1()), varName);
@@ -248,8 +259,15 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(VarName_Array varName) {
-		// Maybe universe scope should be checked as well?
-		Obj tempObj = Tab.currentScope.findSymbol(varName.getI1());
+		Obj tempObj;
+		if (Tab.currentScope.equals(programScope)) {
+			// Global variable - check universe scope as well
+			var returnedObj = Tab.find(varName.getI1());
+			tempObj = returnedObj.equals(Tab.noObj) ? null : returnedObj;
+		}
+		else {
+			tempObj = Tab.currentScope.findSymbol(varName.getI1());
+		}
 		
 		if (tempObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", varName.getI1()), varName);
@@ -278,7 +296,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 	@Override
 	public void visit(MethodName methodName) {
-		Obj tempObj = Tab.currentScope.findSymbol(methodName.getI1());
+		Obj tempObj;
+		if (Tab.currentScope.equals(programScope)) {
+			// Global method - check universe scope as well
+			var returnedObj = Tab.find(methodName.getI1());
+			tempObj = returnedObj.equals(Tab.noObj) ? null : returnedObj;
+		}
+		else {
+			tempObj = Tab.currentScope.findSymbol(methodName.getI1());
+		}
+		
 		
 		if (tempObj != null) {
 			report_error(String.format(

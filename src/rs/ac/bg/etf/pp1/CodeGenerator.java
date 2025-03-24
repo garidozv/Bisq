@@ -15,6 +15,7 @@ import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
 import rs.ac.bg.etf.pp1.ast.CondTerm;
 import rs.ac.bg.etf.pp1.ast.Condition;
+import rs.ac.bg.etf.pp1.ast.Designator;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
@@ -186,34 +187,10 @@ public class CodeGenerator extends VisitorAdaptor {
 			Code.load(factor.getDesignator().obj);
 		}
 	}
-	
+		
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
-		var methodObj = factor.getDesignator().obj;
-		
-		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
-			// Global method
-			int offset = methodObj.getAdr() - Code.pc;
-			
-			Code.put(Code.call);
-			Code.put2(offset);
-		}
-		else {
-			// Member method
-			/*
-			 * Object address is buried on the expressions stack under the method arguments
-			 * So there is no way to retrieve it other than generating the code to retrieve it again
-			 */
-			factor.getDesignator().traverseBottomUp(this);
-			
-			Code.put(Code.getfield);
-			Code.put2(0);
-			Code.put(Code.invokevirtual);
-			for (char c : methodObj.getName().toCharArray()) {
-				Code.put4(c);
-			}
-			Code.put4(-1);
-		}
+		generateMethodCall(factor.getDesignator());
 	}
 	
 	@Override
@@ -301,25 +278,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.put2(1);
 		Code.put(Code.aload);
 		
-		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
-			// Global method
-			int offset = methodObj.getAdr() - Code.pc;
-			
-			Code.put(Code.call);
-			Code.put2(offset);
-		}
-		else {
-			// Member method
-			expr.getDesignator().traverseBottomUp(this);
-			
-			Code.put(Code.getfield);
-			Code.put2(0);
-			Code.put(Code.invokevirtual);
-			for (char c : methodObj.getName().toCharArray()) {
-				Code.put4(c);
-			}
-			Code.put4(-1);
-		}
+		generateMethodCall(expr.getDesignator());
 		
 		Code.put(Code.add);
 		Code.put(Code.getstatic);
@@ -377,36 +336,10 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {
-		Obj methodObj = designatorStatement.getDesignator().obj;
-		
-		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
-			// Global method
-			var offset = methodObj.getAdr() - Code.pc;
-			
-			Code.put(Code.call);
-			Code.put2(offset);
-		}
-		else {
-			// Member method
-			/*
-			 * Object address is buried on the expressions stack under the method arguments
-			 * So there is no way to retrieve it other than generating the code to retrieve it again
-			 */
-			designatorStatement.getDesignator().traverseBottomUp(this);
-			
-			Code.put(Code.getfield);
-			Code.put2(0);
-			
-			Code.put(Code.invokevirtual);
-			for (char c : methodObj.getName().toCharArray()) {
-				Code.put4(c);
-			}
-			Code.put4(-1);
-		}
-		
+		generateMethodCall(designatorStatement.getDesignator());
 		
 		// If method returns a value it's never used, so we have to clean the expression stack
-		if (!methodObj.getType().equals(Tab.noType)) {
+		if (!designatorStatement.getDesignator().obj.getType().equals(Tab.noType)) {
 			Code.put(Code.pop);
 		}
 	}
@@ -735,6 +668,34 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.putJump(0);
 		
 		breakJumpsStack.peek().add(Code.pc - 2);
+	}
+	
+	private void generateMethodCall(Designator designator) {
+		var methodObj = designator.obj;
+		
+		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
+			// Global method
+			int offset = methodObj.getAdr() - Code.pc;
+			
+			Code.put(Code.call);
+			Code.put2(offset);
+		}
+		else {
+			// Member method
+			/*
+			 * Object address is buried on the expressions stack under the method arguments
+			 * So there is no way to retrieve it other than generating the code to retrieve it again
+			 */
+			designator.traverseBottomUp(this);
+			
+			Code.put(Code.getfield);
+			Code.put2(0);
+			Code.put(Code.invokevirtual);
+			for (char c : methodObj.getName().toCharArray()) {
+				Code.put4(c);
+			}
+			Code.put4(-1);
+		}
 	}
 	
 	private void addToStaticMemory(int value) {

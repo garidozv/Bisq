@@ -273,7 +273,75 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Expr_Map expr) {
-		// TODO
+		var methodObj = expr.getDesignator().obj;
+		
+		Code.put(Code.putstatic);
+		Code.put2(0);
+		
+		if (methodObj.getFpPos() != MethodTypes.GLOBAL.value) {
+			// Pop the object address generated for the method designator
+			Code.put(Code.pop);
+		}
+		
+		Code.put(Code.const_n);
+		Code.put(Code.putstatic);
+		Code.put2(1);
+		Code.put(Code.const_n);
+		
+		var loopStartAddr = Code.pc;
+		
+		if (methodObj.getFpPos() != MethodTypes.GLOBAL.value) {
+			// Generate the object address for 'this' parameter
+			expr.getDesignator().traverseBottomUp(this);
+		}
+		
+		Code.put(Code.getstatic);
+		Code.put2(0);
+		Code.put(Code.getstatic);
+		Code.put2(1);
+		Code.put(Code.aload);
+		
+		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
+			// Global method
+			int offset = methodObj.getAdr() - Code.pc;
+			
+			Code.put(Code.call);
+			Code.put2(offset);
+		}
+		else {
+			// Member method
+			expr.getDesignator().traverseBottomUp(this);
+			
+			Code.put(Code.getfield);
+			Code.put2(0);
+			Code.put(Code.invokevirtual);
+			for (char c : methodObj.getName().toCharArray()) {
+				Code.put4(c);
+			}
+			Code.put4(-1);
+		}
+		
+		Code.put(Code.add);
+		Code.put(Code.getstatic);
+		Code.put2(1);
+		Code.put(Code.getstatic);
+		Code.put2(0);
+		Code.put(Code.arraylength);
+		Code.put(Code.const_1);
+		Code.put(Code.sub);
+		Code.put(Code.jcc + Code.ge);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(14);
+		Code.put(Code.getstatic);
+		Code.put2(1);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.putstatic);
+		Code.put2(1);
+		Code.putJump(loopStartAddr);
 	}
 	
 	@Override

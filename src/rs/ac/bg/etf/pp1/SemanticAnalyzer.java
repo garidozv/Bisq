@@ -151,6 +151,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(ProgramName programName) {
 		programObj = Tab.insert(Obj.Prog, programName.getI1(), Tab.noType);
 		Tab.openScope();
+		
+		// Reserve space for two global variables used to store temporary values for 'map' statements
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, "", Tab.noType));
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, "", Tab.noType));
 	}
 	
 	@Override

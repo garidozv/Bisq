@@ -341,7 +341,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		currentMethod.setLevel(paramCount);
 		Tab.chainLocalSymbols(currentMethod);
 		Tab.closeScope();
-
+		
+		methodDecl.obj = currentMethod;
 		currentMethod = null;
 		paramCount = 0;
 		methodReturned = false;

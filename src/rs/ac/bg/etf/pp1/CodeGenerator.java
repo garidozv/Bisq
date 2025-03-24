@@ -447,8 +447,15 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(MethodDecl methodDecl) {
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		if (methodDecl.obj.getType().equals(Tab.noType)) {
+			// Generate implicit return for void methods
+			Code.put(Code.exit);
+			Code.put(Code.return_);
+		} else {
+			// Generate run-time error if execution reaches the end of the method body without returning
+			Code.put(Code.trap);
+			Code.put(-1);
+		}
 	}
 	
 	@Override

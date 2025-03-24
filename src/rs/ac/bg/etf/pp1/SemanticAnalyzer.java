@@ -157,8 +157,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		programScope = Tab.currentScope;
 		
 		// Reserve space for two global variables used to store temporary values for 'map' statements
-		Tab.currentScope.addToLocals(new Obj(Obj.Var, "", Tab.noType));
-		Tab.currentScope.addToLocals(new Obj(Obj.Var, "", Tab.noType));
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, "__temp1", Tab.noType));
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, "__temp2", Tab.noType));
 	}
 	
 	@Override

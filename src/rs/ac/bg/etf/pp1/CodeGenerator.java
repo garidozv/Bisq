@@ -71,6 +71,9 @@ import rs.etf.pp1.symboltable.concepts.Struct;
 public class CodeGenerator extends VisitorAdaptor {
 	
 	private final static int VarSize = 4;
+
+	private static int setPrintMethodAddr;
+	private static int unionMethodAddr;
 	
 	private int mainJumpAddr;
 	private int dataSize;
@@ -127,7 +130,207 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.put(Code.exit);
 		Code.put(Code.return_);
 		
-		// TODO: set methods
+		// setPrint method
+		setPrintMethodAddr = Code.pc;
+		Code.put(Code.enter);
+		Code.put(1);
+		Code.put(2);
+		Code.put(Code.const_1);
+		Code.put(Code.store_1);
+		Code.put(Code.load_n);
+		Code.put(Code.load_1);
+		Code.put(Code.aload);
+		Code.put(Code.const_n);
+		Code.put(Code.print);
+		Code.put(Code.load_1);
+		Code.put(Code.load_n);
+		Code.put(Code.const_n);
+		Code.put(Code.aload);
+		Code.put(Code.jcc + Code.ne);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(17);
+		Code.put(Code.const_);
+		Code.put4(32);
+		Code.put(Code.const_n);
+		Code.put(Code.bprint);
+		Code.put(Code.load_1);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.store_1);
+		Code.put(Code.jmp);
+		Code.put2(-32);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// add(a, b)
+		Obj addObj = Tab.find("add");
+		addObj.setAdr(Code.pc);
+		
+		Code.put(Code.enter);
+		Code.put(2);
+		Code.put(3);
+		Code.put(Code.const_n);
+		Code.put(Code.store_2);
+		Code.put(Code.load_2);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.store_2);
+		Code.put(Code.load_2);
+		Code.put(Code.load_n);
+		Code.put(Code.const_n);
+		Code.put(Code.aload);
+		Code.put(Code.jcc + Code.le);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(21);
+		Code.put(Code.load_n);
+		Code.put(Code.load_2);
+		Code.put(Code.aload);
+		Code.put(Code.load_1);
+		Code.put(Code.jcc + Code.ne);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(5);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		Code.put(Code.jmp);
+		Code.put2(-35);
+		Code.put(Code.load_2);
+		Code.put(Code.load_n);
+		Code.put(Code.arraylength);
+		Code.put(Code.jcc + Code.ge);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(14);
+		Code.put(Code.load_n);
+		Code.put(Code.load_2);
+		Code.put(Code.load_1);
+		Code.put(Code.astore);
+		Code.put(Code.load_n);
+		Code.put(Code.const_n);
+		Code.put(Code.dup2);
+		Code.put(Code.aload);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.astore);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// addAll(a, b)
+		Obj addAllObj = Tab.find("addAll");
+		addAllObj.setAdr(Code.pc);
+		
+		Code.put(Code.enter);
+		Code.put(2);
+		Code.put(3);
+		Code.put(Code.const_n);
+		Code.put(Code.store_2);
+		Code.put(Code.load_2);
+		Code.put(Code.load_1);
+		Code.put(Code.arraylength);
+		Code.put(Code.jcc + Code.lt);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(17);
+		Code.put(Code.load_n);
+		Code.put(Code.load_1);
+		Code.put(Code.load_2);
+		Code.put(Code.aload);
+		
+		int offset = addObj.getAdr() - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
+		
+		Code.put(Code.load_2);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.store_2);
+		Code.put(Code.jmp);
+		Code.put2(-26);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
+		
+		// union method
+		unionMethodAddr = Code.pc;
+		Code.put(Code.enter);
+		Code.put(3);
+		Code.put(4);
+		Code.put(Code.load_n);
+		Code.put(Code.const_n);
+		Code.put(Code.const_n);
+		Code.put(Code.astore);
+		Code.put(Code.const_1);
+		Code.put(Code.store_3);
+		Code.put(Code.load_n);
+		Code.put(Code.load_1);
+		Code.put(Code.load_3);
+		Code.put(Code.aload);
+		
+		offset = addObj.getAdr() - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
+		
+		Code.put(Code.load_3);
+		Code.put(Code.load_1);
+		Code.put(Code.const_n);
+		Code.put(Code.aload);
+		Code.put(Code.jcc + Code.ge);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(10);
+		Code.put(Code.load_3);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.store_3);
+		Code.put(Code.jmp);
+		Code.put2(-24);
+		Code.put(Code.const_1);
+		Code.put(Code.store_3);
+		Code.put(Code.load_n);
+		Code.put(Code.load_2);
+		Code.put(Code.load_3);
+		Code.put(Code.aload);
+		
+		offset = addObj.getAdr() - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
+		Code.put(Code.load_3);
+		Code.put(Code.load_2);
+		Code.put(Code.const_n);
+		Code.put(Code.aload);
+		Code.put(Code.jcc + Code.ge);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(6);
+		Code.put(Code.jmp);
+		Code.put2(10);
+		Code.put(Code.load_3);
+		Code.put(Code.const_1);
+		Code.put(Code.add);
+		Code.put(Code.store_3);
+		Code.put(Code.jmp);
+		Code.put2(-24);
+		Code.put(Code.exit);
+		Code.put(Code.return_);
 	}
 	
 	private static int getRelop(Relop relop) {
@@ -195,13 +398,31 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewArray factor) {
+		if (factor.struct.equals(SymbolTableUtils.setType)) {
+			/*
+			 * If a set is being created allocate an array of n + 1 length
+			 * The first element of the set array is used to store the current
+			 * number of elements in the set
+			 */
+			Code.loadConst(1);
+			Code.put(Code.add);
+		}
+		
 		Code.put(Code.newarray);
 		
-		if (factor.getType().struct.equals(Tab.charType)) {
+		if (factor.struct.getElemType().equals(Tab.charType)) {
 			Code.put(0);
 		}
 		else {
 			Code.put(1);
+		}
+		
+		if (factor.struct.equals(SymbolTableUtils.setType)) {
+			// Initialize the set element count to 0
+			Code.put(Code.dup);
+			Code.loadConst(0);
+			Code.loadConst(0);
+			Code.put(Code.astore);
 		}
 	}
 	
@@ -385,33 +606,23 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_AssignSetop designatorStatement) {
-		// TODO
+		Code.load(designatorStatement.getDesignator().obj);
+		Code.load(designatorStatement.getDesignator1().obj);
+		Code.load(designatorStatement.getDesignator2().obj);
+		
+		int offset = unionMethodAddr - Code.pc;
+		Code.put(Code.call);
+		Code.put2(offset);
 	}
-	
-	// TODO: Add support for sets to print methods
 	
 	@Override
 	public void visit(Statement_PrintExpr statement) {
-		Code.loadConst(0);
-		
-		if (statement.getExpr().struct.equals(Tab.charType)) {
-			Code.put(Code.bprint);
-		}
-		else {
-			Code.put(Code.print);
-		}
+		generatePrintStatement(statement.getExpr().struct, 0);
 	}
 	
 	@Override
 	public void visit(Statement_PrintExprWithNum statement) {
-		Code.loadConst(statement.getN2());
-		
-		if (statement.getExpr().struct.equals(Tab.charType)) {
-			Code.put(Code.bprint);
-		}
-		else {
-			Code.put(Code.print);
-		}
+		generatePrintStatement(statement.getExpr().struct, statement.getN2());
 	}
 	
 	@Override
@@ -668,6 +879,25 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.putJump(0);
 		
 		breakJumpsStack.peek().add(Code.pc - 2);
+	}
+	
+	private void generatePrintStatement(Struct objType, int width) {
+		if (objType.equals(SymbolTableUtils.setType)) {
+			// Call set print method
+			int offset = setPrintMethodAddr - Code.pc;
+			Code.put(Code.call);
+			Code.put2(offset);
+		}
+		else {
+			Code.loadConst(width);
+			
+			if (objType.equals(Tab.charType)) {
+				Code.put(Code.bprint);
+			}
+			else {
+				Code.put(Code.print);
+			}
+		}
 	}
 	
 	private void generateMethodCall(Designator designator) {

@@ -36,6 +36,7 @@ public final class SymbolTableUtils {
 		boolTypeObj.setAdr(-1);
 		boolTypeObj.setLevel(-1);
 		
+		setType.setElementType(Tab.intType);
 		Obj setTypeObj = Tab.insert(Obj.Type, "set", SymbolTableUtils.setType);
 		setTypeObj.setAdr(-1);
 		setTypeObj.setLevel(-1);
@@ -50,6 +51,10 @@ public final class SymbolTableUtils {
 		addSecondParam.setAdr(1);
 		addSecondParam.setLevel(1);
 		addMethodLocals.insertKey(addSecondParam);
+		Obj addLocal = new Obj(Obj.Var, "i", Tab.intType);
+		addLocal.setAdr(2);
+		addLocal.setLevel(1);
+		addMethodLocals.insertKey(addLocal);
 		addMethodObj.setLocals(addMethodLocals);
 		addMethodObj.setAdr(0);
 		addMethodObj.setLevel(2);
@@ -65,6 +70,10 @@ public final class SymbolTableUtils {
 		addAllSecondParam.setAdr(1);
 		addAllSecondParam.setLevel(1);
 		addAllMethodLocals.insertKey(addAllSecondParam);
+		Obj addAllLocal = new Obj(Obj.Var, "i", Tab.intType);
+		addAllLocal.setAdr(2);
+		addAllLocal.setLevel(1);
+		addMethodLocals.insertKey(addLocal);
 		addAllMethodObj.setLocals(addAllMethodLocals);
 		addAllMethodObj.setAdr(0);
 		addAllMethodObj.setLevel(2);

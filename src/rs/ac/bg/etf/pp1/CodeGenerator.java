@@ -95,242 +95,288 @@ public class CodeGenerator extends VisitorAdaptor {
 		generatePreDefinedMethods();
 	}
 	
-	private static void generatePreDefinedMethods() {
-		// chr(n)
+	private static void generateChrMethod() {
 		Obj chrObj = Tab.find("chr");
-		chrObj.setAdr(Code.pc);
-		
-		Code.put(Code.enter);
-		Code.put(1);
-		Code.put(1);
+		chrObj.setAdr(CodeUtils.putMethodEnter(1, 1));
 		Code.put(Code.load_n);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
-		
-		// ord(c)
+		CodeUtils.putMethodExit();
+	}
+	
+	private static void generateOrdMethod() {
 		Obj ordObj = Tab.find("ord");
-		ordObj.setAdr(Code.pc);
-		
-		Code.put(Code.enter);
-		Code.put(1);
-		Code.put(1);
+		ordObj.setAdr(CodeUtils.putMethodEnter(1, 1));
 		Code.put(Code.load_n);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
-		
-		// len(arr)
+		CodeUtils.putMethodExit();
+	}
+	
+	private static void generateLenMethod() {
 		Obj lenObj = Tab.find("len");
-		lenObj.setAdr(Code.pc);
-		
-		Code.put(Code.enter);
-		Code.put(1);
-		Code.put(1);
+		lenObj.setAdr(CodeUtils.putMethodEnter(1, 1));
 		Code.put(Code.load_n);
 		Code.put(Code.arraylength);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
-		
-		// setPrint method
-		setPrintMethodAddr = Code.pc;
-		Code.put(Code.enter);
-		Code.put(1);
-		Code.put(2);
-		Code.put(Code.const_1);
-		Code.put(Code.store_1);
-		Code.put(Code.load_n);
-		Code.put(Code.load_1);
+		CodeUtils.putMethodExit();
+	}
+	
+	/* 
+	 * mJ code would look something like this:
+	 * ---------------------------------------
+	 * i = 1;
+	 *
+	 * if (s[0] == 0) return;
+	 *
+	 * do {
+	 *    print(s[i]);
+	 *    if (i == s[0]) break;
+	 *    print(' ');
+	 *    i++;
+	 * } while();
+	 * ---------------------------------------
+	 */
+	private static void generateSetPrintMethod() {
+		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
+		var i = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
+
+		setPrintMethodAddr = CodeUtils.putMethodEnter(1, 2);
+		// Initialize 'i' to 1
+		Code.loadConst(1);
+		Code.store(i);
+		// If set is empty return immediately
+		Code.load(s);
+		Code.loadConst(0);
 		Code.put(Code.aload);
+		Code.loadConst(0);
+		CodeUtils.putConditionalJumpRelative(Code.ne, 5);
+		CodeUtils.putMethodExit();
+		// Load element to be printed 's[i]' (start of the loop)
+		Code.load(s);
+		Code.load(i);
+		Code.put(Code.aload);
+		// Load 0 as second print argument and print the element
 		Code.put(Code.const_n);
 		Code.put(Code.print);
-		Code.put(Code.load_1);
-		Code.put(Code.load_n);
-		Code.put(Code.const_n);
+		// Load condition values 'i' and 's[0]'
+		Code.load(i);
+		Code.load(s);
+		Code.loadConst(0);
 		Code.put(Code.aload);
-		Code.put(Code.jcc + Code.ne);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(17);
-		Code.put(Code.const_);
-		Code.put4(32);
-		Code.put(Code.const_n);
+		// If condition 'i == s[0]' is met jump to the end of the loop
+		CodeUtils.putConditionalJumpRelative(Code.eq, 17);
+		// Load value of ' ' and 0 as second argument and print it
+		Code.loadConst((int)' ');
+		Code.loadConst(0);
 		Code.put(Code.bprint);
-		Code.put(Code.load_1);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.store_1);
-		Code.put(Code.jmp);
-		Code.put2(-32);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		// Increment 'i'
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Jump to the start of the loop
+		CodeUtils.putJumpRelative(-23);
+		// End of the loop
+		CodeUtils.putMethodExit();
+	}
+	
+	/* 
+	 * mJ code would look something like this:
+	 * ---------------------------------------
+	 * i = 0;
+	 *	
+	 * do {
+	 *    i++;
+	 *    if (i > s[0]) break;
+	 *    if (s[i] == num) return;
+	 * } while ();
+	 * 
+	 * if (i < len(s)) {
+	 *     s[i] = num;
+	 *     s[0]++;
+	 * }
+	 * ---------------------------------------
+	 */
+	private static void generateAddMethod() {
+		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
+		var num = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
+		var i = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
 		
-		// add(a, b)
-		Obj addObj = Tab.find("add");
-		addObj.setAdr(Code.pc);
-		
-		Code.put(Code.enter);
-		Code.put(2);
-		Code.put(3);
-		Code.put(Code.const_n);
-		Code.put(Code.store_2);
-		Code.put(Code.load_2);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.store_2);
-		Code.put(Code.load_2);
-		Code.put(Code.load_n);
-		Code.put(Code.const_n);
+		Obj addMethodObj = Tab.find("add");
+		addMethodObj.setAdr(CodeUtils.putMethodEnter(2, 3));
+		// Initalize 'i' to 0
+		Code.loadConst(0);
+		Code.store(i);
+		// Increment 'i' (Start of the loop)
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Load condition values 'i' and 's[0]'
+		Code.load(i);
+		Code.load(s);
+		Code.loadConst(0);
 		Code.put(Code.aload);
-		Code.put(Code.jcc + Code.le);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(21);
-		Code.put(Code.load_n);
-		Code.put(Code.load_2);
+		// If condition 'i > s[0]' is met jump to the end of the loop
+		CodeUtils.putConditionalJumpRelative(Code.gt, 12);
+		// Load condition values 's[i]' and 'num'
+		Code.load(s);
+		Code.load(i);
 		Code.put(Code.aload);
-		Code.put(Code.load_1);
-		Code.put(Code.jcc + Code.ne);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(5);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
-		Code.put(Code.jmp);
-		Code.put2(-35);
-		Code.put(Code.load_2);
-		Code.put(Code.load_n);
+		Code.load(num);
+		// If condition 's[i] == num' is not met jump to the start of the loop
+		CodeUtils.putConditionalJumpRelative(Code.ne, -15);
+		// If condition is met, exit the method
+		CodeUtils.putMethodExit();
+		// Load condition values 'i' and 'len(s)' (end of the loop)
+		Code.load(i);
+		Code.load(s);
 		Code.put(Code.arraylength);
-		Code.put(Code.jcc + Code.ge);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(14);
-		Code.put(Code.load_n);
-		Code.put(Code.load_2);
-		Code.put(Code.load_1);
+		// If condition is not jump to the end of the statement
+		CodeUtils.putConditionalJumpRelative(Code.ge, 14);
+		// Add 'num' to set 's' at index 'i'
+		Code.load(s);
+		Code.load(i);
+		Code.load(num);
 		Code.put(Code.astore);
-		Code.put(Code.load_n);
-		Code.put(Code.const_n);
+		// Increment set counter 's[0]'
+		Code.load(s);
+		Code.loadConst(0);
 		Code.put(Code.dup2);
 		Code.put(Code.aload);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
+		CodeUtils.putOpConst(Code.add, 1);
 		Code.put(Code.astore);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		// End of the statement
+		CodeUtils.putMethodExit();
+	}
+	
+	/* 
+	 * mJ code would look something like this:
+	 * ---------------------------------------
+	 * i = 0;
+	 * 
+	 * do {
+	 *    if (i >= len(arr)) break;
+	 *    add(s, arr[i]);
+	 *    i++;
+	 * } while ();
+	 * ---------------------------------------
+	 */
+	private static void generateAddAllMethod() {
+		var addMethodObj = Tab.find("add");
+		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
+		var arr = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
+		var i = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
 		
-		// addAll(a, b)
-		Obj addAllObj = Tab.find("addAll");
-		addAllObj.setAdr(Code.pc);
-		
-		Code.put(Code.enter);
-		Code.put(2);
-		Code.put(3);
-		Code.put(Code.const_n);
-		Code.put(Code.store_2);
-		Code.put(Code.load_2);
-		Code.put(Code.load_1);
+		Obj addAllMethodObj = Tab.find("addAll");
+		addAllMethodObj.setAdr(CodeUtils.putMethodEnter(2, 3));
+		// Initialize 'i' to 0
+		Code.loadConst(0);
+		Code.store(i);
+		// Load condition values 'i' and 'len(arr)' (start of the loop)
+		Code.load(i);
+		Code.load(arr);
 		Code.put(Code.arraylength);
-		Code.put(Code.jcc + Code.lt);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(17);
-		Code.put(Code.load_n);
-		Code.put(Code.load_1);
-		Code.put(Code.load_2);
+		// if condition 'i >= len(arr)' is met jump to end of the loop
+		CodeUtils.putConditionalJumpRelative(Code.ge, 17);
+		// Load method arguments 's' and 'arr[i]'
+		Code.load(s);
+		Code.load(arr);
+		Code.load(i);
 		Code.put(Code.aload);
+		// Generate 'add' method call
+		CodeUtils.putCall(addMethodObj.getAdr());
+		// Increment 'i'
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Jump to the start of the loop
+		CodeUtils.putJumpRelative(-17);
+		// End of the loop
+		CodeUtils.putMethodExit();
+	}
+	
+	/* 
+	 * mJ code would look something like this:
+	 * ---------------------------------------
+	 * s1[0] = 0;
+	 * 
+	 * i = 1;
+	 * do {
+	 *    add(s1, s2[i]);
+	 * } while (i < s2[0], i++);
+	 * 
+	 * i = 1;
+	 * do {
+	 *    add(s1, s3[i]);
+	 * } while (i < s3[0], i++);
+	 * ---------------------------------------
+	 */
+	private static void generateUnionMethod() {
+		var addMethodObj = Tab.find("add");
+		var s1 = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
+		var s2 = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
+		var s3 = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
+		var i = SymbolTableUtils.createDummyObj(Obj.Var, 3, false);
 		
-		int offset = addObj.getAdr() - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
-		
-		Code.put(Code.load_2);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.store_2);
-		Code.put(Code.jmp);
-		Code.put2(-26);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
-		
-		// union method
-		unionMethodAddr = Code.pc;
-		Code.put(Code.enter);
-		Code.put(3);
-		Code.put(4);
-		Code.put(Code.load_n);
-		Code.put(Code.const_n);
-		Code.put(Code.const_n);
+		unionMethodAddr = CodeUtils.putMethodEnter(3, 4);
+		// Set 's1' element counter to 0
+		Code.load(s1);
+		Code.loadConst(0);
+		Code.put(Code.dup);
 		Code.put(Code.astore);
-		Code.put(Code.const_1);
-		Code.put(Code.store_3);
-		Code.put(Code.load_n);
-		Code.put(Code.load_1);
-		Code.put(Code.load_3);
+		// Initialize 'i' to 1
+		Code.loadConst(1);
+		Code.store(i);
+		// Load method arguments 's1' and 's2[i]' (start of the loop)
+		Code.load(s1);
+		Code.load(s2);
+		Code.load(i);
 		Code.put(Code.aload);
-		
-		offset = addObj.getAdr() - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
-		
-		Code.put(Code.load_3);
-		Code.put(Code.load_1);
-		Code.put(Code.const_n);
+		// Generate 'add' method call
+		CodeUtils.putCall(addMethodObj.getAdr());
+		// Load condition values 'i' and 's2[0]'
+		Code.load(i);
+		Code.load(s2);
+		Code.loadConst(0);
 		Code.put(Code.aload);
-		Code.put(Code.jcc + Code.ge);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(10);
-		Code.put(Code.load_3);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.store_3);
-		Code.put(Code.jmp);
-		Code.put2(-24);
-		Code.put(Code.const_1);
-		Code.put(Code.store_3);
-		Code.put(Code.load_n);
-		Code.put(Code.load_2);
-		Code.put(Code.load_3);
+		// If condition 'i < s2[0]' is not met jump to end of the loop statement
+		CodeUtils.putConditionalJumpRelative(Code.ge, 10);
+		// Increment 'i' (loop statement)
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Jump to the start of the loop
+		CodeUtils.putJumpRelative(-18);
+		// Initialize 'i' to 1 (end of the loop statement)
+		Code.loadConst(1);
+		Code.store(i);
+		// Load method arguments 's1' and 's3[i]' (start of the loop)
+		Code.load(s1);
+		Code.load(s3);
+		Code.load(i);
 		Code.put(Code.aload);
-		
-		offset = addObj.getAdr() - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
-		Code.put(Code.load_3);
-		Code.put(Code.load_2);
-		Code.put(Code.const_n);
+		// Generate 'add' method call
+		CodeUtils.putCall(addMethodObj.getAdr());
+		// Load condition values 'i' and 's3[0]'
+		Code.load(i);
+		Code.load(s3);
+		Code.loadConst(0);
 		Code.put(Code.aload);
-		Code.put(Code.jcc + Code.ge);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(10);
-		Code.put(Code.load_3);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.store_3);
-		Code.put(Code.jmp);
-		Code.put2(-24);
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		// If condition 'i < s3[0]' is not met jump to end of the loop statement
+		CodeUtils.putConditionalJumpRelative(Code.ge, 10);
+		// Increment 'i' (loop statement)
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Jump to the start of the loop
+		CodeUtils.putJumpRelative(-18);
+		// End of the loop statement
+		CodeUtils.putMethodExit();
+	}
+	
+	private static void generatePreDefinedMethods() {
+		generateChrMethod();
+		generateOrdMethod();
+		generateLenMethod();
+		generateSetPrintMethod();
+		generateAddMethod();
+		generateAddAllMethod();
+		generateUnionMethod();
 	}
 	
 	private static int getRelop(Relop relop) {
@@ -398,7 +444,9 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewArray factor) {
-		if (factor.struct.equals(SymbolTableUtils.setType)) {
+		var typeStruct = factor.struct;
+		
+		if (typeStruct.equals(SymbolTableUtils.setType)) {
 			/*
 			 * If a set is being created allocate an array of n + 1 length
 			 * The first element of the set array is used to store the current
@@ -410,14 +458,14 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		Code.put(Code.newarray);
 		
-		if (factor.struct.getElemType().equals(Tab.charType)) {
+		if (typeStruct.getElemType().equals(Tab.charType)) {
 			Code.put(0);
 		}
 		else {
 			Code.put(1);
 		}
 		
-		if (factor.struct.equals(SymbolTableUtils.setType)) {
+		if (typeStruct.equals(SymbolTableUtils.setType)) {
 			// Initialize the set element count to 0
 			Code.put(Code.dup);
 			Code.loadConst(0);
@@ -468,23 +516,43 @@ public class CodeGenerator extends VisitorAdaptor {
 		}
 	}
 	
+	/*
+	 * Generates the code for the 'map' operator
+	 * Pre-generated method cannot be used, because method called can vary,
+	 * and because method pointers are not supported
+	 * 
+	 * mJ code would look something like this:
+	 * ---------------------------------------
+	 * i = 0; sum = 0;
+	 * 
+	 * do {
+	 *    sum = sum + func(arr[i]);
+	 * } 
+	 * while (i < len(arr) - 1, i++);
+	 * ---------------------------------------
+	 */
 	
 	@Override
 	public void visit(Expr_Map expr) {
-		var methodObj = expr.getDesignator().obj;
 		
-		Code.put(Code.putstatic);
-		Code.put2(0);
+		var methodObj = expr.getDesignator().obj;
+		// Create dummy objects for global temporary variables that are used
+		var arr = SymbolTableUtils.createDummyObj(Obj.Var, 0, true);
+		var i = SymbolTableUtils.createDummyObj(Obj.Var, 1, true);
+		
+		// Store array ('arr') address in first temporary variable
+		Code.store(arr);
 		
 		if (methodObj.getFpPos() != MethodTypes.GLOBAL.value) {
 			// Pop the object address generated for the method designator
 			Code.put(Code.pop);
 		}
 		
-		Code.put(Code.const_n);
-		Code.put(Code.putstatic);
-		Code.put2(1);
-		Code.put(Code.const_n);
+		// Initialize the counter ('i') stored in second temporary variable to 0
+		Code.loadConst(0);
+		Code.store(i);
+		// Initialize the sum variable that will be stored on expression stack to 0
+		Code.loadConst(0);
 		
 		var loopStartAddr = Code.pc;
 		
@@ -493,35 +561,31 @@ public class CodeGenerator extends VisitorAdaptor {
 			expr.getDesignator().traverseBottomUp(this);
 		}
 		
-		Code.put(Code.getstatic);
-		Code.put2(0);
-		Code.put(Code.getstatic);
-		Code.put2(1);
+		// Load the method argument 'arr[i]'
+		Code.load(arr);
+		Code.load(i);
 		Code.put(Code.aload);
-		
+		// Generate method call code
 		generateMethodCall(expr.getDesignator());
-		
+		// Add the return value to local sum
 		Code.put(Code.add);
-		Code.put(Code.getstatic);
-		Code.put2(1);
-		Code.put(Code.getstatic);
-		Code.put2(0);
+		// Load condition values 'i' and 'len(arr) - 1'
+		Code.load(i);
+		Code.load(arr);
 		Code.put(Code.arraylength);
-		Code.put(Code.const_1);
-		Code.put(Code.sub);
-		Code.put(Code.jcc + Code.ge);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(6);
-		Code.put(Code.jmp);
-		Code.put2(14);
-		Code.put(Code.getstatic);
-		Code.put2(1);
-		Code.put(Code.const_1);
-		Code.put(Code.add);
-		Code.put(Code.putstatic);
-		Code.put2(1);
+		CodeUtils.putOpConst(Code.sub, 1);
+		// If condition 'i < len(arr) - 1' is met jump to loop statement
+		CodeUtils.putConditionalJumpRelative(Code.lt, 6);
+		// Condition not met, jump to the end of the loop
+		CodeUtils.putJumpRelative(14);
+		// Increment 'i' (loop statement)
+		Code.load(i);
+		CodeUtils.putOpConst(Code.add, 1);
+		Code.store(i);
+		// Jump to the start of the loop
 		Code.putJump(loopStartAddr);
+		// End of the loop
+		// Sum is on the expression stack
 	}
 	
 	@Override
@@ -530,7 +594,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		if (designator.getI1().equals("this") || designatorObj.getKind() == Obj.Fld ||
 				designatorObj.getKind() == Obj.Meth && designatorObj.getFpPos() != MethodTypes.GLOBAL.value) {
-			Code.put(Code.load_n + 0);
+			Code.put(Code.load_n);
 		}
 		
 		if (designatorObj.getType().getKind() == Struct.Array && 
@@ -610,9 +674,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.load(designatorStatement.getDesignator1().obj);
 		Code.load(designatorStatement.getDesignator2().obj);
 		
-		int offset = unionMethodAddr - Code.pc;
-		Code.put(Code.call);
-		Code.put2(offset);
+		CodeUtils.putCall(unionMethodAddr);
 	}
 	
 	@Override
@@ -652,17 +714,14 @@ public class CodeGenerator extends VisitorAdaptor {
 			Code.fixup(mainJumpAddr + 1);
 		}
 		
-		Code.put(Code.enter);
-		Code.put(methodNameObj.getLevel());
-		Code.put(methodNameObj.getLocalSymbols().size());
+		CodeUtils.putMethodEnter(methodNameObj.getLevel(), methodNameObj.getLocalSymbols().size());
 	}
 	
 	@Override
 	public void visit(MethodDecl methodDecl) {
 		if (methodDecl.obj.getType().equals(Tab.noType)) {
 			// Generate implicit return for void methods
-			Code.put(Code.exit);
-			Code.put(Code.return_);
+			CodeUtils.putMethodExit();
 		} else {
 			// Generate run-time error if execution reaches the end of the method body without returning
 			Code.put(Code.trap);
@@ -672,14 +731,12 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Statement_ReturnVoid statement) {
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		CodeUtils.putMethodExit();
 	}
 	
 	@Override
 	public void visit(Statement_ReturnExpr statement) {
-		Code.put(Code.exit);
-		Code.put(Code.return_);
+		CodeUtils.putMethodExit();
 	}
 	
 	@Override
@@ -707,8 +764,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		 * we will add a jmp instruction, which we will patch later on
 		 */
 		mainJumpAddr = Code.pc;
-		Code.put(Code.jmp);
-		Code.pc += 2; // 2 bytes for missing argument
+		Code.putJump(0);
 	}
 	
 	// Conditions
@@ -884,9 +940,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	private void generatePrintStatement(Struct objType, int width) {
 		if (objType.equals(SymbolTableUtils.setType)) {
 			// Call set print method
-			int offset = setPrintMethodAddr - Code.pc;
-			Code.put(Code.call);
-			Code.put2(offset);
+			CodeUtils.putCall(setPrintMethodAddr);
 		}
 		else {
 			Code.loadConst(width);
@@ -905,10 +959,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method
-			int offset = methodObj.getAdr() - Code.pc;
-			
-			Code.put(Code.call);
-			Code.put2(offset);
+			CodeUtils.putCall(methodObj.getAdr());
 		}
 		else {
 			// Member method

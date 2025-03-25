@@ -2,6 +2,7 @@ package rs.ac.bg.etf.pp1;
 
 import java.lang.classfile.Signature.BaseTypeSig;
 
+import java_cup.internal_error;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
@@ -78,6 +79,13 @@ public final class SymbolTableUtils {
 		addAllMethodObj.setAdr(0);
 		addAllMethodObj.setLevel(2);
 		addAllMethodObj.setFpPos(MethodTypes.GLOBAL.value);
+	}
+	
+	public static Obj createDummyObj(int kind, int adr, boolean global) {
+		var obj = new Obj(kind, null, Tab.noType);
+		obj.setAdr(adr);
+		obj.setLevel(global ? 0 : 1);
+		return obj;
 	}
 	
 	public static boolean assignableTo(Struct dest, Struct src) {

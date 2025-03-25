@@ -20,7 +20,6 @@ import rs.ac.bg.etf.pp1.ast.CallPars_ActPars;
 import rs.ac.bg.etf.pp1.ast.CallPars_Empty;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
-import rs.ac.bg.etf.pp1.ast.ClassFields;
 import rs.ac.bg.etf.pp1.ast.ClassName;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
@@ -577,11 +576,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		Tab.closeScope();	
 		classDecl.obj = currentClass;
 		currentClass = null;
-	}
-	
-	@Override
-	public void visit(ClassFields classFields) {
-		
 	}
 	
 	// Interface declarations

@@ -68,7 +68,7 @@ nonterminal
 	InterfaceBody, ClassBody, MethodDeclList, VarDecl, ProgramDeclarations,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
-	FormParVar, ClassName, ExtendedClassName, ClassFields, InterfaceName,
+	FormParVar, ClassName, ExtendedClassName, InterfaceName,
 	ConditionList, CondTermList;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
@@ -133,12 +133,9 @@ MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDeclList MethodDecl
 					(MethodDeclList_Epsilon) /* epsilon */
 					;
 
-ClassBody ::=	(ClassBody_Fields) ClassFields
+ClassBody ::=	(ClassBody_Fields) VarDeclList
 				|
-				(ClassBody_FieldsAndMethods) ClassFields LBRACE MethodDeclList RBRACE  
-				;
-				
-ClassFields ::=	(ClassFields) VarDeclList
+				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE  
 				;
 
 ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedClassName LBRACE ClassBody RBRACE

@@ -1,18 +1,12 @@
-// Test301
+// Tests if-else statements and do-while loops
 
-program test301
+program Test
 
 const bool flag = true;
 
 int num;
 	
 {	
-	void dummyAdd(set a, int b) int n; {
-		n = len(a);
-		
-		
-	}
-	
 	void main() int a, b, c, d, arr1[], arr2[];	
 	{
 		num = 8;

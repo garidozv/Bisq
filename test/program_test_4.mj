@@ -1,0 +1,60 @@
+// Tests sets
+
+program SetTest
+
+set s1, s2, s3;
+
+{
+	void main() int arr[];
+	{
+		s1 = new set[5];
+		
+		add(s1, 3);
+		add(s1, 2);
+		add(s1, 4);
+		add(s1, 2);
+		add(s1, 3);
+		add(s1, 1);
+		add(s1, 8);
+		add(s1, 1);
+		add(s1, 9);
+		
+		print(s1);
+		print(eol);
+		
+		arr = new int[4];
+		s2 = new set[10];
+		
+		add(s2, 6);
+		add(s2, 4);
+		add(s2, 18);
+		add(s2, 1);
+		add(s2, 13);
+		
+		arr[0] = 11;
+		arr[1] = 18;
+		arr[2] = 33;
+		arr[3] = 20;
+		
+		print(s2);
+		print(eol);
+		
+		addAll(s2, arr);
+		
+		add(s2, 77);
+		add(s2, 88);
+		add(s2, 99);
+		add(s2, 1010);
+		
+		print(s2);
+		print(eol);
+		
+		s3 = new set[15];
+		
+		s3 = s1 union s2;
+		
+		print(s3);
+	}
+}
+
+

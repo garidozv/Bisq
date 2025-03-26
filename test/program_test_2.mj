@@ -1,6 +1,6 @@
-// Test301
+// Tests class member access
 
-program test301
+program Test
 
 const bool o = false;
 
@@ -45,13 +45,13 @@ class C extends B {
 	int test(int b) { return b + 10; }
 	int add4(int a, int b, int c, int d) { return a + b + c + d; }
 	
-	void main() int a; char h, f[]; A temp, semp, lemp;	
+	void main() int num; char ch, ch_arr[]; A a1, a2, a3;	
 	{
-		a = 2;
-		a++;
-		a--;
+		num = 2;
+		num++;
+		num--;
 		
-		test(a);
+		test(num);
 		
 		arr = new int[10];
 		
@@ -61,32 +61,32 @@ class C extends B {
 		print(test(arr[0]), 2);
 		print(add4(1, 2, 3, 4), 10);
 		
-		temp = new A();
-		semp = temp;
-		temp.a = arr;
-		temp.x = temp.getX();
+		a1 = new A();
+		a2 = a1;
+		a1.a = arr;
+		a1.x = a1.getX();
 		
-		print(temp.getX(), 2);
-		semp = new B();
-		semp.x = 8;
-		print(semp.getX(), 2);
-		lemp = new C();
-		print(lemp.getX(), 3);
+		print(a1.getX(), 2);
+		a2 = new B();
+		a2.x = 8;
+		print(a2.getX(), 2);
+		a3 = new C();
+		print(a3.getX(), 3);
 		
-		temp.x++;
-		temp.a[0]--;
+		a1.x++;
+		a1.a[0]--;
 		
-		temp.m = new N();
-		temp.m.n = 2;
-		temp.a = new int[2];
-		temp.a[0] = 9;
-		arr[3] = temp.a[1] + temp.m.n;
+		a1.m = new N();
+		a1.m.n = 2;
+		a1.a = new int[2];
+		a1.a[0] = 9;
+		arr[3] = a1.a[1] + a1.m.n;
 		
 		print(arr[3], 3);
 		
-		f = new char[6];
-		f[4] = 'b';
-		h = f[4];
+		ch_arr = new char[6];
+		ch_arr[4] = 'b';
+		ch = ch_arr[4];
 	}
 }
 

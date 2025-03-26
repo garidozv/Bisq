@@ -6,10 +6,11 @@
 				<!--exclude name="sym.java"/-->
 				<exclude name="util/Log4JUtils.java"/>
 				<exclude name="SemanticAnalyzer.java"/>
-				<exclude name="SymbolTableUtils.java"/>
+				<exclude name="TabUtils.java"/>
 				<exclude name="Compiler.java"/>
 				<exclude name="ExtendedDumpSymbolTableVisitor.java"/>
 				<exclude name="CodeGenerator.java"/>
+				<exclude name="CodeUtils.java"/>
 				<!--exclude name="Yylex.java"/-->
 			</fileset>
 		</delete>
@@ -63,7 +64,7 @@
 			</classpath>
 		</java>
 	</target>
-	<target name="runObj">
+	<target name="runObj" depends="">
 		<java classname="rs.etf.pp1.mj.runtime.Run" input="test/input.txt">
 			<arg value="test/program.obj"/>
 			<classpath>
@@ -79,5 +80,14 @@
 				<pathelement location="lib/mj-runtime-1.1.jar"/>
 			</classpath>
 		</java>
+	</target>
+	<target name="mjCompile">
+	    <java classname="rs.ac.bg.etf.pp1.Compiler" fork="true">
+	        <arg value="test/set_test.mj"/>
+	        <classpath>
+	            <pathelement location="bin"/>
+	        	<pathelement location="lib/*"/>
+	        </classpath>
+	    </java>
 	</target>
 </project>

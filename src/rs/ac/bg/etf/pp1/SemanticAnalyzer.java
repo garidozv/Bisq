@@ -286,8 +286,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var varObj = getSymbolObj(name);
 		
 		if (varObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", name), varName);
+			report_error(String.format("Multiple definitions of the name '%s'", name), varName);
 		}
 		if (currentClass != null && currentMethod == null) {
 			// If currentMethod is not null, we are inside of a class method definition
@@ -305,8 +304,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var arrayTypeStruct = new Struct(Struct.Array, currentType);
 		
 		if (varObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", name), varName);
+			report_error(String.format("Multiple definitions of the name '%s'", name), varName);
 		} 
 		else if (currentType.equals(TabUtils.setType)) {
 			report_error("Array of sets is not supported", varName);
@@ -329,8 +327,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var methodObj = getSymbolObj(name);	
 		
 		if (methodObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", name), methodName);
+			report_error(String.format("Multiple definitions of the name '%s'", name), methodName);
 		}
 		else {
 			currentMethod = Tab.insert(Obj.Meth, name, currentType);
@@ -378,9 +375,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		
 		if (!currentMethod.getType().equals(Tab.noType) && !hasMethodReturned) {
-			report_error(String.format(
-					"Non-void method '%s' must contain a return statement",
-					currentMethod.getName()), methodDecl);
+			report_error(
+					String.format("Non-void method '%s' must contain a return statement",
+							currentMethod.getName()),
+					methodDecl);
 		}
 		
 		// Do this even if no return statement is detected, so that the analyzing can continue
@@ -402,8 +400,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var paramObj = Tab.currentScope.findSymbol(paramName);
 		
 		if (paramObj != null) {
-			report_error(String.format("Multiple definitions of the name '%s'",
-					paramName), formParVar);
+			report_error(String.format("Multiple definitions of the name '%s'", paramName), formParVar);
 		}
 		else {
 			paramObj = Tab.insert(Obj.Var, paramName, currentType);
@@ -417,8 +414,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var paramObj = Tab.currentScope.findSymbol(paramName);
 		
 		if (paramObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", paramName), formParVar);
+			report_error(String.format("Multiple definitions of the name '%s'", paramName), formParVar);
 		}
 		else if (currentType.equals(TabUtils.setType)) {
 			report_error("Array of sets is not supported", formParVar);
@@ -437,8 +433,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var classObj = getSymbolObj(name);
 		
 		if (classObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", name), className);
+			report_error(String.format("Multiple definitions of the name '%s'", name), className);
 		} 
 		else {
 			currentType = new Struct(Struct.Class);
@@ -496,9 +491,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				}
 				else if (!hasMatchingSignature(baseMethod, method) || 
 						!baseMethod.getType().equals(method.getType())) {
-					report_error(String.format(
-							"Signature of overridden method '%s' must not be changed",
-							baseMethod.getName()), classDecl);
+					report_error(
+							String.format("Signature of overridden method '%s' must not be changed", 
+									baseMethod.getName()),
+							classDecl);
 				}
 			}
 		}
@@ -510,9 +506,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				
 				if (method == null) {
 					if (baseMethod.getFpPos() == MethodTypes.LOCAL_UNIMPLEMENTED.value) {
-						report_error(String.format(
-								"Interface method '%s' must be implemented",
-								baseMethod.getName()), classDecl);
+						report_error(
+								String.format("Interface method '%s' must be implemented", 
+										baseMethod.getName()),
+								classDecl);
 					}
 					else {
 						Tab.currentScope.addToLocals(baseMethod);
@@ -520,9 +517,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				}
 				else if (!hasMatchingSignature(method, baseMethod) ||
 							!baseMethod.getType().equals(method.getType())) {
-						report_error(String.format(
-								"Signature of overridden method '%s' must not be changed", 
-								baseMethod.getName()), classDecl);
+						report_error(
+								String.format("Signature of overridden method '%s' must not be changed", 
+										baseMethod.getName()),
+								classDecl);
 				}
 			}
 		}
@@ -560,8 +558,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var interfaceObj = getSymbolObj(name);
 		
 		if (interfaceObj != null) {
-			report_error(String.format(
-					"Multiple definitions of the name '%s'", name), interfaceName);
+			report_error(String.format("Multiple definitions of the name '%s'", name), interfaceName);
 		}
 		else {
 			currentType = new Struct(Struct.Interface);
@@ -602,8 +599,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			designator.obj = new Obj(Obj.Var, "this", currentClass.getType());
 		}
 		else if (currentObj == Tab.noObj) {
-			report_error(String.format(
-					"Access to undefined variable '%s'", designator.getI1()), designator);
+			report_error(String.format("Access to undefined variable '%s'", designator.getI1()), designator);
 			designator.obj = Tab.noObj;
 		}
 		else if (currentObj.getKind() != Obj.Con && currentObj.getKind() != Obj.Meth &&
@@ -628,8 +624,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Meth ||
 				(currentObj.getType().getKind() != Struct.Class &&
 				currentObj.getType().getKind() != Struct.Interface)) {
-			report_error(String.format(
-					"Access to a memeber of a non-complex type", designator.getI2()), designator);
+			report_error(
+					String.format("Access to a memeber of a non-complex type",
+							designator.getI2()), 
+					designator);
 			designator.obj = Tab.noObj;
 		}
 		else {
@@ -649,7 +647,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			}
 			
 			if(memberObj == null || memberObj.getKind() != Obj.Fld && memberObj.getKind() != Obj.Meth) {
-				report_error(String.format("Access to an undefined class member '%s'", objectName),
+				report_error(
+						String.format("Access to an undefined class member '%s'", 
+								objectName),
 						designator);
 				designator.obj = Tab.noObj;
 			}
@@ -718,8 +718,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			factor.struct = Tab.noType;
 		}
 		else if (designatorObj.getKind() != Obj.Meth) {
-			report_error(String.format(
-					"Attemp to call a non-method '%s'", designatorObj.getName()), factor);
+			report_error(String.format("Attemp to call a non-method '%s'", designatorObj.getName()), factor);
 			factor.struct = Tab.noType;
 		} 
 		else if (callParsStruct.equals(Tab.noType)) {
@@ -727,9 +726,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			factor.struct = Tab.noType;
 		}
 		else if (!isCallableWith(designatorObj, callParsStruct)) {
-			report_error(String.format(
-					"Passed arguments do not match the parameters of the method '%s'",
-					designatorObj.getName()), factor);
+			report_error(
+					String.format("Passed arguments do not match the parameters of the method '%s'", 
+							designatorObj.getName()),
+					factor);
 			factor.struct = Tab.noType;
 		}
 		else {
@@ -831,7 +831,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else if (!isMapCompatibleMethod(leftObj)) {
 			report_error(
-				"Left operand of 'map' operator must be method with a single integer parameter", expr);
+					"Left operand of 'map' operator must be method with a single integer parameter",
+					expr);
 			expr.struct = Tab.noType;
 		}
 		else {
@@ -925,13 +926,17 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
 				designatorObj.getKind() != Obj.Fld) {
-			report_error(String.format("Assignment to a non-variable '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Assignment to a non-variable '%s'",
+							designatorObj.getName()),
+					designatorStatement);
 		}
 		else if (!TabUtils.assignableTo(designatorObj.getType(),
 				designatorStatement.getExpr().struct)) {
-			report_error(String.format("Assignment of a value with incopatible type to '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Assignment of a value with incopatible type to '%s'", 
+							designatorObj.getName()), 
+					designatorStatement);
 		}
 	}
 	
@@ -944,14 +949,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
 				designatorObj.getKind() != Obj.Fld) {
-			report_error(String.format(
-					"Attempt to increment a non-variable '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Attempt to increment a non-variable '%s'",
+							designatorObj.getName()),
+					designatorStatement);
 		}
 		else if (!designatorObj.getType().equals(Tab.intType)) {
-			report_error(String.format(
-					"Attempt to increment a non-integer variable '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Attempt to increment a non-integer variable '%s'", 
+							designatorObj.getName()),
+					designatorStatement);
 		}
 	}
 	
@@ -964,14 +971,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else if (designatorObj.getKind() != Obj.Var && designatorObj.getKind() != Obj.Elem &&
 				designatorObj.getKind() != Obj.Fld) {
-			report_error(String.format(
-					"Attempt to decrement a non-variable '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Attempt to decrement a non-variable '%s'", 
+							designatorObj.getName()),
+					designatorStatement);
 		}
 		else if (!designatorObj.getType().equals(Tab.intType)) {
-			report_error(String.format(
-					"Attempt to decrement a non-integer variable '%s'",
-					designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Attempt to decrement a non-integer variable '%s'", 
+							designatorObj.getName()),
+					designatorStatement);
 		}
 	}
 	
@@ -983,16 +992,19 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			return;
 		}
 		else if (designatorObj.getKind() != Obj.Meth) {
-			report_error(String.format(
-					"Attemp to call a non-method '%s'", designatorObj.getName()), designatorStatement);
+			report_error(
+					String.format("Attemp to call a non-method '%s'",
+							designatorObj.getName()),
+					designatorStatement);
 		} 
 		else if (designatorStatement.getCallPars().struct.equals(Tab.noType)) {
 			report_error("Invalid call parameters", designatorStatement);
 		}
 		else if (!isCallableWith(designatorObj, designatorStatement.getCallPars().struct)) {
-				report_error(String.format(
-						"Passed arguments do not match the parameters of the method '%s'",
-						designatorObj), designatorStatement);
+				report_error(
+						String.format("Passed arguments do not match the parameters of the method '%s'",
+								designatorObj),
+						designatorStatement);
 		}
 	}
 	
@@ -1004,11 +1016,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (!firstOperandObj.getType().equals(TabUtils.setType) ||
 				!secondOperandObj.getType().equals(TabUtils.setType)) {
-			report_error("Both operands of the set operator must be of set type",
-					designatorStatement);
+			report_error("Both operands of the set operator must be of set type", designatorStatement);
 		}
 		else if (!resultObj.getType().equals(TabUtils.setType)) {
-			report_error("Result of the set operator can only be assigned to a varible of set type",
+			report_error(
+					"Result of the set operator can only be assigned to a varible of set type",
 					designatorStatement);
 		}
 	}
@@ -1053,15 +1065,18 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		
 		if (statementObj.getKind() != Obj.Var && statementObj.getKind() != Obj.Elem &&
 				statementObj.getKind() != Obj.Fld) {
-			report_error(String.format("Attemp to read into a non variable '%s'",
-					statementObj.getName()), statement);
+			report_error(
+					String.format("Attemp to read into a non variable '%s'",
+							statementObj.getName()),
+					statement);
 		}
 		else if (!statementObj.getType().equals(Tab.intType) && 
 				!statementObj.getType().equals(Tab.charType) &&
 				!statementObj.getType().equals(TabUtils.boolType)) {
-			report_error(String.format(
-					"Attemp to read into a variable '%s' of a non-compatible type",
-					statementObj.getName()), statement);
+			report_error(
+					String.format("Attemp to read into a variable '%s' of a non-compatible type",
+							statementObj.getName()),
+					statement);
 		}
 	}
 	
@@ -1082,9 +1097,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(Statement_ReturnExpr statement) {
 		if (currentMethod != null && !currentMethod.getType().equals(statement.getExpr().struct)) {
-			report_error(String.format(
-					"Type of return value doesn't match the return type of method '%s'",
-					currentMethod.getName()), statement);
+			report_error(
+					String.format("Type of return value doesn't match the return type of method '%s'",
+							currentMethod.getName()),
+					statement);
 		}
 		else {
 			hasMethodReturned = true;
@@ -1094,8 +1110,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(Statement_ReturnVoid statement) {
 		if (currentMethod != null && !currentMethod.getType().equals(Tab.noType)) {
-			report_error(String.format(
-					"Non-void method '%s' has to return a value", currentMethod.getName()), statement);
+			report_error(
+					String.format("Non-void method '%s' has to return a value",
+							currentMethod.getName()),
+					statement);
 		}
 		else {
 			hasMethodReturned = true;

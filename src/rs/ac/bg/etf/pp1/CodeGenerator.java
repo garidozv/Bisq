@@ -6,7 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
-import rs.ac.bg.etf.pp1.SymbolTableUtils.MethodTypes;
+import rs.ac.bg.etf.pp1.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
@@ -133,8 +133,8 @@ public class CodeGenerator extends VisitorAdaptor {
 	 * ---------------------------------------
 	 */
 	private static void generateSetPrintMethod() {
-		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
-		var i = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
+		var s = TabUtils.createDummyObj(Obj.Var, 0, false);
+		var i = TabUtils.createDummyObj(Obj.Var, 1, false);
 
 		setPrintMethodAddr = CodeUtils.putMethodEnter(1, 2);
 		// Initialize 'i' to 1
@@ -193,9 +193,9 @@ public class CodeGenerator extends VisitorAdaptor {
 	 * ---------------------------------------
 	 */
 	private static void generateAddMethod() {
-		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
-		var num = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
-		var i = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
+		var s = TabUtils.createDummyObj(Obj.Var, 0, false);
+		var num = TabUtils.createDummyObj(Obj.Var, 1, false);
+		var i = TabUtils.createDummyObj(Obj.Var, 2, false);
 		
 		Obj addMethodObj = Tab.find("add");
 		addMethodObj.setAdr(CodeUtils.putMethodEnter(2, 3));
@@ -258,9 +258,9 @@ public class CodeGenerator extends VisitorAdaptor {
 	 */
 	private static void generateAddAllMethod() {
 		var addMethodObj = Tab.find("add");
-		var s = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
-		var arr = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
-		var i = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
+		var s = TabUtils.createDummyObj(Obj.Var, 0, false);
+		var arr = TabUtils.createDummyObj(Obj.Var, 1, false);
+		var i = TabUtils.createDummyObj(Obj.Var, 2, false);
 		
 		Obj addAllMethodObj = Tab.find("addAll");
 		addAllMethodObj.setAdr(CodeUtils.putMethodEnter(2, 3));
@@ -308,10 +308,10 @@ public class CodeGenerator extends VisitorAdaptor {
 	 */
 	private static void generateUnionMethod() {
 		var addMethodObj = Tab.find("add");
-		var s1 = SymbolTableUtils.createDummyObj(Obj.Var, 0, false);
-		var s2 = SymbolTableUtils.createDummyObj(Obj.Var, 1, false);
-		var s3 = SymbolTableUtils.createDummyObj(Obj.Var, 2, false);
-		var i = SymbolTableUtils.createDummyObj(Obj.Var, 3, false);
+		var s1 = TabUtils.createDummyObj(Obj.Var, 0, false);
+		var s2 = TabUtils.createDummyObj(Obj.Var, 1, false);
+		var s3 = TabUtils.createDummyObj(Obj.Var, 2, false);
+		var i = TabUtils.createDummyObj(Obj.Var, 3, false);
 		
 		unionMethodAddr = CodeUtils.putMethodEnter(3, 4);
 		// Set 's1' element counter to 0
@@ -446,7 +446,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	public void visit(Factor_NewArray factor) {
 		var typeStruct = factor.struct;
 		
-		if (typeStruct.equals(SymbolTableUtils.setType)) {
+		if (typeStruct.equals(TabUtils.setType)) {
 			/*
 			 * If a set is being created allocate an array of n + 1 length
 			 * The first element of the set array is used to store the current
@@ -465,7 +465,7 @@ public class CodeGenerator extends VisitorAdaptor {
 			Code.put(1);
 		}
 		
-		if (typeStruct.equals(SymbolTableUtils.setType)) {
+		if (typeStruct.equals(TabUtils.setType)) {
 			// Initialize the set element count to 0
 			Code.put(Code.dup);
 			Code.loadConst(0);
@@ -537,8 +537,8 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		var methodObj = expr.getDesignator().obj;
 		// Create dummy objects for global temporary variables that are used
-		var arr = SymbolTableUtils.createDummyObj(Obj.Var, 0, true);
-		var i = SymbolTableUtils.createDummyObj(Obj.Var, 1, true);
+		var arr = TabUtils.createDummyObj(Obj.Var, 0, true);
+		var i = TabUtils.createDummyObj(Obj.Var, 1, true);
 		
 		// Store array ('arr') address in first temporary variable
 		Code.store(arr);
@@ -772,24 +772,24 @@ public class CodeGenerator extends VisitorAdaptor {
 	/*
 	 * -Condition consists of CondTerms, and if one of them is true, the whole condition is true
 	 * -We will 'skip' CondTerm if we come across a CondFact that is not true, and each 
-	 * 	CondTerm will end with an unconditional jump to the 'then' block, because, if we reach the
-	 * 	end of the CondTerm that means that the CondTerm is true, hence the whole Condition is true
+	 * CondTerm will end with an unconditional jump to the 'then' block, because, if we reach the
+	 * end of the CondTerm that means that the CondTerm is true, hence the whole Condition is true
 	 * -When we say 'skip' a CondTerm, it means unconditionally jumping on to the next 
-	 * 	CondTerm if there is one, and if not, jumping to the end of the Condition
+	 * CondTerm if there is one, and if not, jumping to the end of the Condition
 	 * -The Condition will end with unconditional jump to the 'else' block, because, if we reach
-	 * 	the end, that means that none of the CondTerms in the Condition were true, and that the 
-	 * 	else block should be executed
+	 * the end, that means that none of the CondTerms in the Condition were true, and that the 
+	 * else block should be executed
 	 * -Else block will end with an unconditional jump to the end of the statement
 	 * -If there is no else block, we will just treat the statements end as the else block
 	 * -When we reach the end of the CondTerm, we will add a false jump to 'then' block,
-	 * 	and then patch all of the 'skip' jumps in the CondTerm itself
+	 * and then patch all of the 'skip' jumps in the CondTerm itself
 	 * -The address of the false jump will be remembered, so that it can be patched later on,
-	 * 	when we reach the 'then' block
+	 * when we reach the 'then' block
 	 * 
 	 * -This explanation describes the way if-then-else statements are handled in addition to
-	 * 	Condition handling. Loops, would be handled similarly, the only difference being what
-	 *  'then' and 'else' represent, and what addresses are known at the time Condition code
-	 *  is generate
+	 * Condition handling. Loops, would be handled similarly, the only difference being what
+	 * 'then' and 'else' represent, and what addresses are known at the time Condition code
+	 * is generated
 	 * 
 	 * -Example:
 	 * 
@@ -814,10 +814,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	 * else:	...
 	 * 			...
 	 * end:		...
-	 * 
 	 */
-	
-	
 	
 	@Override
 	public void visit(CondFact_Expr condFact) {
@@ -938,7 +935,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	}
 	
 	private void generatePrintStatement(Struct objType, int width) {
-		if (objType.equals(SymbolTableUtils.setType)) {
+		if (objType.equals(TabUtils.setType)) {
 			// Call set print method
 			CodeUtils.putCall(setPrintMethodAddr);
 		}

@@ -6,19 +6,14 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.rmi.server.LoaderHandler;
-
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
 import java_cup.runtime.Symbol;
-import rs.ac.bg.etf.pp1.util.Log4JUtils;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
-import rs.etf.pp1.symboltable.concepts.Obj;
-import rs.etf.pp1.symboltable.concepts.Struct;
-import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 import rs.ac.bg.etf.pp1.ast.Program;
+import rs.ac.bg.etf.pp1.util.Log4JUtils;
 
 public class Compiler {
 
@@ -28,14 +23,13 @@ public class Compiler {
 	}
 	
 	public static void main(String[] args) throws Exception {
-		
 		Logger log = Logger.getLogger(Compiler.class);
-		
 		Reader br = null;
+		
 		try {
-			File sourceCode = new File("test/gen_program.mj");
+			File sourceCode = new File(args[0]);
 			log.info("Compiling source file: " + sourceCode.getAbsolutePath());
-			
+
 			// Lexical analysis
 			br = new BufferedReader(new FileReader(sourceCode));
 			Yylex lexer = new Yylex(br);
@@ -49,25 +43,25 @@ public class Compiler {
 			
 	        
 			// Log syntax tree
-			//log.info(programNode.toString(""));
-			//log.info("===================================");
+			log.info(programNode.toString(""));
 			
-			SymbolTableUtils.init();
+			TabUtils.init();
 			
 			// Semantic analysis
 			SemanticAnalyzer semAnalyzer = new SemanticAnalyzer();
 			programNode.traverseBottomUp(semAnalyzer);
 			
 			Tab.dump(new ExtendedDumpSymbolTableVisitor());
-			log.info("===================================");
+			System.out.println("===============================================================");
 			
 			
 			if (!parser.errorDetected && semAnalyzer.passed()) {
 				File objFile = new File("test/program.obj");
 				if(objFile.exists()) objFile.delete();
-
+				
+				// Code generation
 				CodeGenerator codeGenerator = new CodeGenerator();
-				codeGenerator.setDataSize(semAnalyzer.nVars);
+				codeGenerator.setDataSize(semAnalyzer.getnVars());
 				programNode.traverseBottomUp(codeGenerator);
 				Code.dataSize = codeGenerator.getDataSize();
 				Code.mainPc = codeGenerator.getStartPc();
@@ -81,8 +75,5 @@ public class Compiler {
 		finally {
 			if (br != null) try { br.close(); } catch (IOException e1) { log.error(e1.getMessage(), e1); }
 		}
-
 	}
-	
-	
 }

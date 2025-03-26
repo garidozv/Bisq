@@ -84,10 +84,11 @@ class Block extends Object {
 }
 ```
 
-Objects, as well as arrays, are created with `new` keyword:
+Objects, as well as arrays and sets, are created with `new` keyword:
 
 ```
-void main() int arr[]; Movable m; {
+void main() int arr[]; Movable m; set s; {
+    s = new set[20];
     arr = new int[10];
     m = new Block();
     m.move(arr[0], arr[1]);
@@ -140,16 +141,27 @@ do {
 ```
 
 
-### Built in methods
+### Built-in and pre-defined methods
 
-There are built in `read` and `print` methods, for reading from standard input and printing to standard output.
-
-```
-void main() int x; {
-    read(x);
-    print(x + 2, 5);
-}
-```
+Built-in methods:
+- `print(expr [, width])`
+    - Prints the passed expression to the standard output
+    - Optionally, you can specify width to format the output
+- `read(var)`
+    - Reads input from the standard input and assigns it to the specified variable
+ 
+Pre-defined methods:
+- `ord(ch)`
+    - Returns the integer value for the given character
+- `chr(num)`
+    - Converts the specified integer into the corresponding character
+- `len(arr)`
+    - Returns the length of the array
+- `add(s, num)`
+    - Adds the number to the set
+    - If the set already contains the number or if the set is full, no action is taken
+- `addAll(s1, arr)`
+    - Adds all elements from the specified array to the set
 
 ---
 
@@ -169,6 +181,15 @@ Assignment Operator
 
 Increment and Decrement
 - `--`, `++`
+
+Set Oprators
+- `union`
+
+Array Operators
+- `map`
+    - Left operand has to be a method that takes in one integer and returns an integer
+    - Right operand has to be an integer array
+    - `map` calls the passed method on each element of the array, and returns the sum of returned values
 
 ---
 

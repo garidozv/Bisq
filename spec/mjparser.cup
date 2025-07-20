@@ -35,12 +35,15 @@ parser code {:
     public void report_info(String message, Object info) {
     	StringBuilder msg = new StringBuilder(message); 
     	if (info instanceof Symbol) {
-    		msg.append (" na liniji ").append(((Symbol)info).left);
-    		msg.append (" na simbolu ").append(((Symbol)info).sym);
+    		msg.append(" na liniji ").append(((Symbol)info).left);
+    		msg.append(" na simbolu '").append(((Symbol)info).value).append("'");
     	}
         log.info(msg.toString());
     }
     
+    public void report_recovered_error() {
+    	log.info("Oporavak od greske uspjesan, parsiranje se nastavlja");
+    }
 :}
 
 scan with {:
@@ -122,10 +125,16 @@ VarName ::=	(VarName_NonArray) IDENT
 
 VarDeclNoType ::= 	(VarDeclNoType_VarName) VarDeclNoType COMMA VarName
 					|
+					(VarDeclNoType_Error) error
+					{: parser.report_recovered_error(); :}
+					|
 					(VarDeclNoType_Epsilon) /* epsilon */
 					;
 
-VarDecl ::=	(VarDecl) Type VarName VarDeclNoType SEMI
+VarDecl ::=	(VarDecl_Valid) Type VarName VarDeclNoType SEMI
+			|
+			(VarDecl_Error) error SEMI
+			{: parser.report_recovered_error(); :}
 			;
 
 MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDeclList MethodDecl
@@ -143,7 +152,10 @@ ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedClassName LBR
 				(ClassDecl_NonDerived) CLASS ClassName LBRACE ClassBody RBRACE
 				;
 				
-ExtendedClassName ::= 	(ExtendedClassName) Type
+ExtendedClassName ::= 	(ExtendedClassName_Valid) Type
+						|
+						(ExtendedClassName_Error) error
+						{: parser.report_recovered_error(); :}
 						;
 				
 ClassName ::=	(ClassName) IDENT
@@ -191,6 +203,9 @@ FormPars ::= 	(FormPars_FormParVar) FormParVar
 FormParVar ::=	(FormParVar_NonArray) Type IDENT 
 				|
 				(FormParVar_Array) Type IDENT LBRACK RBRACK
+				|
+				(FormParVar_Error) error
+				{: parser.report_recovered_error(); :}
 				;
 
 Type ::=	(Type) IDENT
@@ -248,6 +263,9 @@ DesignatorStatement ::= (DesignatorStatement_AssignExpr) Designator Assignop Exp
 						(DesignatorStatement_Dec) Designator DEC
 						|
 						(DesignatorStatement_AssignSetop) Designator Assignop Designator Setop Designator
+						|
+						(DesignatorStatement_Error) error
+						{: parser.report_recovered_error(); :}
 						;
 
 CallPars ::=	(CallPars_ActPars) LPAREN ActPars RPAREN
@@ -261,7 +279,10 @@ ActPars ::=	(ActPars_Expr) Expr
 			;
 			
 
-Condition ::= 	(Condition) ConditionList
+Condition ::= 	(Condition_Valid) ConditionList
+				|
+				(Condition_Error) error
+				{: parser.report_recovered_error(); :}
 				;
 				
 ConditionList ::=	(ConditionList_CondTerm) CondTerm

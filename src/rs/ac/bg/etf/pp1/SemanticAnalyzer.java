@@ -29,7 +29,7 @@ import rs.ac.bg.etf.pp1.ast.ExprList_SubTerm;
 import rs.ac.bg.etf.pp1.ast.ExprList_Term;
 import rs.ac.bg.etf.pp1.ast.Expr_ExprList;
 import rs.ac.bg.etf.pp1.ast.Expr_Map;
-import rs.ac.bg.etf.pp1.ast.ExtendedClassName;
+import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
 import rs.ac.bg.etf.pp1.ast.Factor_BoolConst;
 import rs.ac.bg.etf.pp1.ast.Factor_CharConst;
 import rs.ac.bg.etf.pp1.ast.Factor_Designator;
@@ -445,7 +445,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	@Override
-	public void visit(ExtendedClassName extendedClassName) {
+	public void visit(ExtendedClassName_Valid extendedClassName) {
 		if (currentType == null || currentClass == null) return;
 		
 		if (currentType.getKind() == Struct.Class) {

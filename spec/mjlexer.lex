@@ -116,4 +116,4 @@ import java_cup.runtime.Symbol;
 
 // Error
 
-. { System.err.println("Leksicka greska ("+yytext()+") u liniji "+(yyline+1)); }
+. { System.err.println("Leksicka greska ("+yytext()+") na liniji "+(yyline+1)); }

@@ -1,0 +1,42 @@
+// Tests error recovery
+
+program NewTest
+
+int a, b-, hr-2oxx/2, f;
+bool k + 2;
+
+class Predmet
+{
+	 int tezina * 2;
+	 char vrsta, {;
+}
+
+class Failure extends []
+{
+
+}
+
+{
+	void main()
+	{
+		a = 2 +;
+		a = fun(;
+		print(a);
+	}
+	
+	void fun(int a, ;, int c) int b;
+	{
+		if ( {}) {
+		
+		}
+		
+		do {
+			b++;
+		} while (c--, ba=);
+	}
+	
+	void proc( 2 + 2 ) 
+	{
+	
+	}
+}

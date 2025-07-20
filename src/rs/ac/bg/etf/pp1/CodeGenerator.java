@@ -14,7 +14,7 @@ import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
 import rs.ac.bg.etf.pp1.ast.CondTerm;
-import rs.ac.bg.etf.pp1.ast.Condition;
+import rs.ac.bg.etf.pp1.ast.Condition_Valid;
 import rs.ac.bg.etf.pp1.ast.Designator;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignExpr;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
@@ -843,7 +843,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	}
 		
 	@Override
-	public void visit(Condition condition) {
+	public void visit(Condition_Valid condition) {
 		Code.putJump(0);
 		
 		elseJumpStack.push(Code.pc - 2);

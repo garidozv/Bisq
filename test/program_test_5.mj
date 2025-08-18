@@ -1,5 +1,23 @@
 // Tests map operator
 
+// Expected output for input 6, 3, 6:
+// 0
+// -1v97
+// 4
+// 15
+// 12
+// 361836
+// 2916
+// 1
+// 2
+// 3
+// 12
+// 1
+// 2
+// 3
+// 12
+// 24
+
 program MapTest
 
 int i;

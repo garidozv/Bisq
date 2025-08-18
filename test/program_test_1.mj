@@ -1,5 +1,23 @@
 // Tests polymorphism and inheritance
 
+// Expected output for input 6:
+// 6
+// 6
+// 6
+// 6
+// 6
+// 6656
+// 945
+// 3936
+// 5670
+// 0
+//  OO 
+// OOOO
+// OOOO
+//  OO 
+// 0
+// NOT IMPLEMENTED
+
 program Test
 
 const int cinilac = 4, delilac = 3;

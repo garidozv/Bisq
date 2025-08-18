@@ -185,6 +185,9 @@ Increment and Decrement
 Set Oprators
 - `union`
 
+Ternary Operator
+- `? :`
+
 Array Operators
 - `map`
     - Left operand has to be a method that takes in one integer and returns an integer

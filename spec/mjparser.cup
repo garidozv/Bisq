@@ -57,7 +57,7 @@ terminal
 	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
 	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, LE, CONST,
 	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
-	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL;
+	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK;
 	
 terminal String IDENT;
 terminal Integer NUMBER;
@@ -72,13 +72,13 @@ nonterminal
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
 	FormParVar, ClassName, ExtendedClassName, InterfaceName,
-	ConditionList, CondTermList;
+	ConditionList, CondTermList, ColToken;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
 	Designator, MethodName, ClassDecl, MethodDecl;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
-	Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,
+	ExprNonTern, ExprTern, Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,
 	Type;
 	
 precedence left ELSE;
@@ -299,9 +299,9 @@ CondTermList ::= 	(CondTermList_CondFact) CondFact
 					;
 				
 				
-CondFact ::=	(CondFact_Expr) Expr 
+CondFact ::=	(CondFact_Expr) ExprNonTern 
 				|
-				(CondFact_RelopExpr) Expr Relop Expr
+				(CondFact_RelopExpr) ExprNonTern Relop ExprNonTern
 				;
 
 ExprList ::=	(ExprList_Term) Term
@@ -310,11 +310,22 @@ ExprList ::=	(ExprList_Term) Term
 				|
 				(ExprList_AddopTerm) ExprList Addop Term
 				;
-
-Expr ::=	(Expr_ExprList) ExprList
+				
+Expr ::=	(Expr_Tern) ExprTern
 			|
-			(Expr_Map) Designator MAP Designator
-			;
+			(Expr_NonTern) ExprNonTern
+			; 
+
+ExprTern ::=	(ExprTern) Condition QMARK Expr ColToken Expr
+				;
+				
+ColToken ::=	(ColToken) COL
+				;
+
+ExprNonTern ::=	(ExprNonTern_ExprList) ExprList
+				|
+				(ExprNonTern_Map) Designator MAP Designator
+				;	
 				
 Term ::= 	(Term_Factor) Factor
 			|

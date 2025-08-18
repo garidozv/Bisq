@@ -11,6 +11,7 @@ import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
+import rs.ac.bg.etf.pp1.ast.ColToken;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
 import rs.ac.bg.etf.pp1.ast.CondTerm;
@@ -27,7 +28,8 @@ import rs.ac.bg.etf.pp1.ast.DoToken;
 import rs.ac.bg.etf.pp1.ast.ElseToken;
 import rs.ac.bg.etf.pp1.ast.ExprList_AddopTerm;
 import rs.ac.bg.etf.pp1.ast.ExprList_SubTerm;
-import rs.ac.bg.etf.pp1.ast.Expr_Map;
+import rs.ac.bg.etf.pp1.ast.ExprNonTern_Map;
+import rs.ac.bg.etf.pp1.ast.ExprTern;
 import rs.ac.bg.etf.pp1.ast.Factor_BoolConst;
 import rs.ac.bg.etf.pp1.ast.Factor_CharConst;
 import rs.ac.bg.etf.pp1.ast.Factor_Designator;
@@ -533,7 +535,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	 */
 	
 	@Override
-	public void visit(Expr_Map expr) {
+	public void visit(ExprNonTern_Map expr) {
 		
 		var methodObj = expr.getDesignator().obj;
 		// Create dummy objects for global temporary variables that are used
@@ -779,7 +781,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	 * -The Condition will end with unconditional jump to the 'else' block, because, if we reach
 	 * the end, that means that none of the CondTerms in the Condition were true, and that the 
 	 * else block should be executed
-	 * -Else block will end with an unconditional jump to the end of the statement
+	 * -Then block will end with an unconditional jump to the end of the statement
 	 * -If there is no else block, we will just treat the statements end as the else block
 	 * -When we reach the end of the CondTerm, we will add a false jump to 'then' block,
 	 * and then patch all of the 'skip' jumps in the CondTerm itself
@@ -869,6 +871,18 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Statement_IfElse statement) {
 		Code.fixup(elseJumpStack.pop());
+	}
+	
+	@Override
+	public void visit(ExprTern expr) {
+		Code.fixup(elseJumpStack.pop());
+	}
+	
+	@Override
+	public void visit(ColToken qMark) {
+		Code.putJump(0);
+		Code.fixup(elseJumpStack.pop());
+		elseJumpStack.push(Code.pc - 2);
 	}
 	
 	@Override

@@ -97,6 +97,7 @@ import java_cup.runtime.Symbol;
 "]" 		{ return new_symbol(sym.RBRACK, yytext()); }
 "{" 		{ return new_symbol(sym.LBRACE, yytext()); }
 "}"			{ return new_symbol(sym.RBRACE, yytext()); }
+"?"			{ return new_symbol(sym.QMARK,  yytext()); }
 
 
 // Single-line comments

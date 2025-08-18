@@ -27,8 +27,11 @@ import rs.ac.bg.etf.pp1.ast.Designator_MemberAccess;
 import rs.ac.bg.etf.pp1.ast.ExprList_AddopTerm;
 import rs.ac.bg.etf.pp1.ast.ExprList_SubTerm;
 import rs.ac.bg.etf.pp1.ast.ExprList_Term;
-import rs.ac.bg.etf.pp1.ast.Expr_ExprList;
-import rs.ac.bg.etf.pp1.ast.Expr_Map;
+import rs.ac.bg.etf.pp1.ast.ExprNonTern_ExprList;
+import rs.ac.bg.etf.pp1.ast.ExprNonTern_Map;
+import rs.ac.bg.etf.pp1.ast.ExprTern;
+import rs.ac.bg.etf.pp1.ast.Expr_NonTern;
+import rs.ac.bg.etf.pp1.ast.Expr_Tern;
 import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
 import rs.ac.bg.etf.pp1.ast.Factor_BoolConst;
 import rs.ac.bg.etf.pp1.ast.Factor_CharConst;
@@ -810,12 +813,40 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	@Override
-	public void visit(Expr_ExprList expr) {
+	public void visit(Expr_NonTern expr) {
+		expr.struct = expr.getExprNonTern().struct;
+	}
+	
+	@Override
+	public void visit(Expr_Tern expr) {
+		expr.struct = expr.getExprTern().struct;
+	}
+	
+	@Override
+	public void visit(ExprTern expr) {
+		var trueStruct = expr.getExpr().struct;
+		var falseStruct = expr.getExpr1().struct;
+		
+		if (!trueStruct.compatibleWith(falseStruct)) {
+			report_error("Ternary operator expressions must be of compatible types", expr);
+			expr.struct = Tab.noType;
+		}
+		else if (trueStruct.equals(falseStruct)) {
+			expr.struct = trueStruct;
+		}
+		else {
+			// If one of the expressions is null, we want to choose the ref type
+			expr.struct = trueStruct.equals(Tab.nullType) ? falseStruct : trueStruct;
+		}
+	}
+	
+	@Override
+	public void visit(ExprNonTern_ExprList expr) {
 		expr.struct = expr.getExprList().struct;
 	}
 	
 	@Override
-	public void visit(Expr_Map expr) {
+	public void visit(ExprNonTern_Map expr) {
 		var leftObj = expr.getDesignator().obj;
 		var righObj = expr.getDesignator1().obj;
 		
@@ -887,13 +918,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(CondFact_Expr condFact) {
-		condFact.struct = condFact.getExpr().struct;
+		condFact.struct = condFact.getExprNonTern().struct;
 	}
 	
 	@Override
 	public void visit(CondFact_RelopExpr condFact) {
-		var firstOperandStruct = condFact.getExpr().struct;
-		var secondOperandStruct = condFact.getExpr1().struct;
+		var firstOperandStruct = condFact.getExprNonTern().struct;
+		var secondOperandStruct = condFact.getExprNonTern1().struct;
 		
 		if ((firstOperandStruct.isRefType() || secondOperandStruct.isRefType()) &&
 				!(condFact.getRelop() instanceof Relop_Equal) &&

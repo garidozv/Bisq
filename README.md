@@ -117,7 +117,7 @@ int add(int a, int b) int temp; {
 ---
 ### Conditional Statements
 
-The language supports *if-else* statements and *do-while* loops.
+The language supports *if-else* statements, *do-while* loops and *for* loops.
 Both conditional statements and loops can be nested.
 Loops support `continue` and `break` statements;
 
@@ -138,6 +138,12 @@ do {
 
     if (x == 0) break;
 } while (x < 20, x--);
+```
+```
+sum = 0;
+for (i = 1; i < 10; i++) {
+    sum = sum + i;
+}
 ```
 
 

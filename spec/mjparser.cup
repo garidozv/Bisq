@@ -57,7 +57,7 @@ terminal
 	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
 	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, LE, CONST,
 	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
-	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK;
+	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK, FOR;
 	
 terminal String IDENT;
 terminal Integer NUMBER;
@@ -72,7 +72,7 @@ nonterminal
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
 	FormParVar, ClassName, ExtendedClassName, InterfaceName,
-	ConditionList, CondTermList, ColToken;
+	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
 	Designator, MethodName, ClassDecl, MethodDecl;
@@ -242,8 +242,25 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				|
 				(Statement_DoWhileConditionWithDesignatorStatement) DoToken Statement WhileToken LPAREN Condition COMMA DesignatorStatement RPAREN SEMI
 				|
+				(Statement_For) FOR LPAREN ForInitializer SEMI ForCondition SEMI ForPostStatement RPAREN Statement
+				|
 				(Statement_Block) LBRACE StatementList RBRACE
 				;
+				
+ForInitializer ::=	(ForInitializer_DesignatorStatement) DesignatorStatement
+					| 
+					(ForInitializer_Epsilon) /* epsilon */
+					;
+					
+ForCondition ::=	(ForCondition_Condition) Condition
+					|
+					(ForCondition_Epsilon) /* epsilon */
+					;
+					
+ForPostStatement ::=	(ForPostStatement_DesignatorStatement) DesignatorStatement
+						|
+						(ForPostStatement_Epsilon) /* epsilon */
+						;
 				
 ElseToken ::=	(ElseToken) ELSE
 				;

@@ -41,6 +41,9 @@ import rs.ac.bg.etf.pp1.ast.Factor_Expr;
 import rs.ac.bg.etf.pp1.ast.Factor_NewArray;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.Factor_NumConst;
+import rs.ac.bg.etf.pp1.ast.ForPostStatement;
+import rs.ac.bg.etf.pp1.ast.ForPostStatement_DesignatorStatement;
+import rs.ac.bg.etf.pp1.ast.ForPostStatement_Epsilon;
 import rs.ac.bg.etf.pp1.ast.FormParVar_Array;
 import rs.ac.bg.etf.pp1.ast.FormParVar_NonArray;
 import rs.ac.bg.etf.pp1.ast.InterfaceBody_MethodSignature;
@@ -69,6 +72,7 @@ import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Scope;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
+import rs.ac.bg.etf.pp1.ast.Statement_For;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExprWithNum;
 import rs.ac.bg.etf.pp1.ast.Statement_Read;
@@ -1073,6 +1077,21 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Statement_DoWhileConditionWithDesignatorStatement statement) {
+		loopCount--;
+	}
+	
+	@Override
+	public void visit(ForPostStatement_Epsilon forPostStatement) {
+		loopCount++;
+	}
+	
+	@Override
+	public void visit(ForPostStatement_DesignatorStatement forPostStatement) {
+		loopCount++;
+	}
+	
+	@Override
+	public void visit(Statement_For statement) {
 		loopCount--;
 	}
 	

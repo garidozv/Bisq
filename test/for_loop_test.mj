@@ -1,0 +1,84 @@
+
+// Expected output:
+// i
+// 0
+// j=1
+// j=3
+// j=5
+// j=7
+// o
+// 1
+// j=1
+// j=3
+// j=5
+// j=7
+// o
+// 2
+// j=3
+// j=5
+// j=7
+// o
+// 3
+// j=3
+// j=5
+// j=7
+// o
+// 4
+// j=5
+// j=7
+// o
+// 5
+// j=5
+// j=7
+// o
+// 6
+// j=7
+// o
+// 7
+// j=7
+// o
+// 8
+// j=9
+// o
+// 9
+// j=9
+// o
+// 5
+// 4
+// 3
+// 2
+// 1
+
+program ForLoopTest
+	
+{	
+	void main() int i, j;
+	{
+		print('i'); print(eol);
+		for (i = 0; i < 10; i++) {
+			print(i); print(eol);
+			for (j = i - 1; j < 10;) {
+				j++;
+				if (j % 2 == 0) continue;
+				print('j'); print('='); print(j); print(eol);
+				if (j == 7) break;
+			}
+			print('o'); print(eol);
+		}
+		print(eol);
+		
+		i = 5;
+		for (;;) {
+			if (i == 0) break;
+			
+			do {
+				break;
+			} while (false);
+			
+			print(i); print(eol);
+			i--;
+		}
+	}
+}
+
+

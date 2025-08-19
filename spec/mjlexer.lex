@@ -65,6 +65,7 @@ import java_cup.runtime.Symbol;
 "union"   		{ return new_symbol(sym.UNION, 		yytext()); }
 "do"   			{ return new_symbol(sym.DO, 		yytext()); }
 "while"   		{ return new_symbol(sym.WHILE, 		yytext()); }
+"for"			{ return new_symbol(sym.FOR,		yytext()); }
 "map"   		{ return new_symbol(sym.MAP, 		yytext()); }
 "interface"   	{ return new_symbol(sym.INTERFACE, 	yytext()); }
 

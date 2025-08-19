@@ -37,6 +37,12 @@ import rs.ac.bg.etf.pp1.ast.Factor_DesignatorCall;
 import rs.ac.bg.etf.pp1.ast.Factor_NewArray;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.Factor_NumConst;
+import rs.ac.bg.etf.pp1.ast.ForCondition_Condition;
+import rs.ac.bg.etf.pp1.ast.ForCondition_Epsilon;
+import rs.ac.bg.etf.pp1.ast.ForInitializer_DesignatorStatement;
+import rs.ac.bg.etf.pp1.ast.ForInitializer_Epsilon;
+import rs.ac.bg.etf.pp1.ast.ForPostStatement_DesignatorStatement;
+import rs.ac.bg.etf.pp1.ast.ForPostStatement_Epsilon;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodName;
 import rs.ac.bg.etf.pp1.ast.Mulop_Div;
@@ -55,6 +61,7 @@ import rs.ac.bg.etf.pp1.ast.Statement_Continue;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileCondition;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileConditionWithDesignatorStatement;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
+import rs.ac.bg.etf.pp1.ast.Statement_For;
 import rs.ac.bg.etf.pp1.ast.Statement_If;
 import rs.ac.bg.etf.pp1.ast.Statement_IfElse;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
@@ -92,6 +99,8 @@ public class CodeGenerator extends VisitorAdaptor {
 	private Stack<LinkedList<Integer>> breakJumpsStack = new Stack<>();
 	private Stack<Integer> elseJumpStack = new Stack<>();
 	private Stack<Integer> doAddrStack = new Stack<>();
+	private Stack<Integer> forAddrStack = new Stack<>();
+	private int forConditionStartAddr = 0;
 	
 	public CodeGenerator() {
 		generatePreDefinedMethods();
@@ -935,6 +944,57 @@ public class CodeGenerator extends VisitorAdaptor {
 	}
 	
 	@Override
+	public void visit(ForInitializer_DesignatorStatement initializer) {
+		IntializeForLoop();
+	}
+	
+	@Override
+	public void visit(ForInitializer_Epsilon initializer) {
+		IntializeForLoop();
+	}
+	
+	@Override
+	public void visit(ForPostStatement_DesignatorStatement statement) {
+		HandleForLoopPostStatement();
+	}
+
+	@Override
+	public void visit(ForPostStatement_Epsilon statement) {
+		HandleForLoopPostStatement();
+	}
+	
+	@Override
+	public void visit(ForCondition_Condition statement) {
+		HandleForLoopCondition();
+	}
+	
+	@Override
+	public void visit(ForCondition_Epsilon statement) {
+		elseJumpStack.push(-1);
+		HandleForLoopCondition();
+	}
+	
+	@Override
+	public void visit(Statement_For statement) {
+		LinkedList<Integer> continueJumps = continueJumpsStack.pop();
+		while (continueJumps.size() > 0) {
+			Code.fixup(continueJumps.remove());
+		}
+		
+		Code.putJump(forAddrStack.pop());
+		
+		var elseAddr = elseJumpStack.pop();
+		if (elseAddr != -1) {
+			Code.fixup(elseAddr);
+		}
+		
+		LinkedList<Integer> breakJumps = breakJumpsStack.pop();
+		while (breakJumps.size() > 0) {
+			Code.fixup(breakJumps.remove());
+		}
+	}
+	
+	@Override
 	public void visit(Statement_Continue statement) {
 		Code.putJump(0);
 		
@@ -1016,5 +1076,21 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		// End of virtual table marker
 		addToStaticMemory(-2);
+	}
+	
+	private void HandleForLoopPostStatement() {
+		Code.putJump(forConditionStartAddr);
+		Code.fixup(forAddrStack.peek() - 2);
+	}
+	
+	private void HandleForLoopCondition() {
+		Code.putJump(0);
+		forAddrStack.push(Code.pc);
+	}
+	
+	private void IntializeForLoop() {
+		forConditionStartAddr = Code.pc;
+		continueJumpsStack.push(new LinkedList<Integer>());
+		breakJumpsStack.push(new LinkedList<Integer>());
 	}
 }

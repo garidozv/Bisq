@@ -19,8 +19,6 @@ class Failure extends []
 {
 	void main()
 	{
-		a = 2 +;
-		a = fun(;
 		print(a);
 	}
 	

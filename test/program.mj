@@ -30,5 +30,8 @@ class Person {
         if (res == false) {
             print('e'); print('r'); print('r'); print('o'); print('r');
         }
+        else {
+            print('s'); print('u'); print('c'); print('c'); print('e'); print('s'); print('s');
+        }
     }
 }

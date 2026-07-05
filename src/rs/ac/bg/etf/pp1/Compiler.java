@@ -45,15 +45,19 @@ public class Compiler {
 			Yylex lexer = new Yylex(br);
 			
 			// Syntactic analysis
-			MJParser parser = new MJParser(lexer);
-			//parser.loggingEnabled = true;
-	        Symbol rootNode = parser.parse();  
+            MJParser parser = new MJParser(lexer);
+            parser.loggingEnabled = true;
+            Symbol rootNode = parser.parse();
 
-	        Program programNode = (Program)(rootNode.value); 
-			
-	        
-			// Log syntax tree
-			log.info(programNode.toString(""));
+            if (parser.errorDetected || rootNode == null || !(rootNode.value instanceof Program)) {
+                log.error("Program parsing was unsuccessful due to fatal syntax errors!");
+                return;
+            }
+
+            Program programNode = (Program)(rootNode.value);
+
+            // Log program syntax tree
+            log.info(programNode.toString(""));
 			
 			TabUtils.init();
 			

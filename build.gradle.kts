@@ -121,15 +121,17 @@ tasks.register<JavaExec>("mjCompile") {
     dependsOn("classes")
 
     group = "compilation"
-    description = "Compiles an MJ program written in '$testDir/$sourceFileName'"
+
+    val sourceFile = project.findProperty("sourceFile")?.toString() ?: sourceFileName
+    description = "Compiles an MJ program written in '$testDir/$sourceFile'"
 
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("$mainPackage.Compiler")
 
-    inputs.file("$testDir/$sourceFileName")
+    inputs.file("$testDir/$sourceFile")
     outputs.file(outputFile)
 
-    args("$testDir/$sourceFileName", outputFile.get().asFile.absolutePath)
+    args("$testDir/$sourceFile", outputFile.get().asFile.absolutePath)
 }
 
 tasks.register<JavaExec>("runObj") {

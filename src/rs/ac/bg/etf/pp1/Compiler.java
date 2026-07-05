@@ -14,6 +14,8 @@ import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.util.Log4JUtils;
+import rs.ac.bg.etf.pp1.MJParser;
+import rs.ac.bg.etf.pp1.Yylex;
 
 public class Compiler {
 
@@ -27,8 +29,16 @@ public class Compiler {
 		Reader br = null;
 		
 		try {
+			if (args.length < 2) {
+				log.error("Usage: Compiler <source-file> <output-file>");
+				return;
+			}
+
 			File sourceCode = new File(args[0]);
-			log.info("Compiling source file: " + sourceCode.getAbsolutePath());
+			if (!sourceCode.exists()) {
+				log.error("Source file not found: " + sourceCode.getAbsolutePath());
+				return;
+			}
 
 			// Lexical analysis
 			br = new BufferedReader(new FileReader(sourceCode));
@@ -56,8 +66,13 @@ public class Compiler {
 			
 			
 			if (!parser.errorDetected && semAnalyzer.passed()) {
-				File objFile = new File("test/program.obj");
-				if(objFile.exists()) objFile.delete();
+				File outputFile = new File(args[1]);
+				if (outputFile.exists()) {
+					if (!outputFile.delete()) {
+						log.error("Could not delete existing output file: " + outputFile.getAbsolutePath());
+						return;
+					}
+				}
 				
 				// Code generation
 				CodeGenerator codeGenerator = new CodeGenerator();
@@ -65,7 +80,7 @@ public class Compiler {
 				programNode.traverseBottomUp(codeGenerator);
 				Code.dataSize = codeGenerator.getDataSize();
 				Code.mainPc = codeGenerator.getStartPc();
-				Code.write(new FileOutputStream(objFile));
+				Code.write(new FileOutputStream(outputFile));
 
 				log.info("Program successfully generated!");
 			} else {

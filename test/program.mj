@@ -1,0 +1,34 @@
+program Example
+
+const int max = 100;
+
+class Person {
+    int age;
+
+    {
+        bool setAge(int number) {
+            if (number < max) {
+                age = number;
+                return true;
+            }
+
+            return false;
+        }
+    }
+}
+
+{
+    int readNumber() int temp; {
+        read(temp);
+        return temp;
+    }
+
+    void main() bool res; Person p; {
+        p = new Person();
+        res = p.setAge(readNumber());
+
+        if (res == false) {
+            print('e'); print('r'); print('r'); print('o'); print('r');
+        }
+    }
+}

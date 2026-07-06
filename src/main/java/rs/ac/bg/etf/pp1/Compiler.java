@@ -14,8 +14,6 @@ import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.util.Log4JUtils;
-import rs.ac.bg.etf.pp1.MJParser;
-import rs.ac.bg.etf.pp1.Yylex;
 
 public class Compiler {
 
@@ -24,20 +22,27 @@ public class Compiler {
 		Log4JUtils.instance().prepareLogFile(Logger.getRootLogger());
 	}
 	
-	public static void main(String[] args) throws Exception {
+	static void main(String[] args) {
+		try {
+			compile(args);
+		} catch (Exception e) {
+			Logger.getLogger(Compiler.class).error(e.getMessage());
+			System.exit(1);
+		}
+	}
+
+	private static void compile(String[] args) throws Exception {
 		Logger log = Logger.getLogger(Compiler.class);
 		Reader br = null;
 		
 		try {
 			if (args.length < 2) {
-				log.error("Usage: Compiler <source-file> <output-file>");
-				return;
+				throw new IllegalArgumentException("Usage: Compiler <source-file> <output-file>");
 			}
 
 			File sourceCode = new File(args[0]);
 			if (!sourceCode.exists()) {
-				log.error("Source file not found: " + sourceCode.getAbsolutePath());
-				return;
+				throw new IllegalArgumentException("Source file not found: " + sourceCode.getAbsolutePath());
 			}
 
 			// Lexical analysis
@@ -50,8 +55,7 @@ public class Compiler {
             Symbol rootNode = parser.parse();
 
             if (parser.errorDetected || rootNode == null || !(rootNode.value instanceof Program)) {
-                log.error("Program parsing was unsuccessful due to fatal syntax errors!");
-                return;
+                throw new IllegalStateException("Program parsing was unsuccessful");
             }
 
             Program programNode = (Program)(rootNode.value);
@@ -73,8 +77,7 @@ public class Compiler {
 				File outputFile = new File(args[1]);
 				if (outputFile.exists()) {
 					if (!outputFile.delete()) {
-						log.error("Could not delete existing output file: " + outputFile.getAbsolutePath());
-						return;
+						throw new IllegalStateException("Could not delete existing output file: " + outputFile.getAbsolutePath());
 					}
 				}
 				
@@ -88,7 +91,7 @@ public class Compiler {
 
 				log.info("Program successfully generated!");
 			} else {
-				log.info("Program parsing was unsuccessful!");
+				throw new IllegalStateException("Program semantic analysis was unsuccessful");
 			}
 		} 
 		finally {

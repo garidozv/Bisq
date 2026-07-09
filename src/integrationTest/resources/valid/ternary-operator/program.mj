@@ -1,9 +1,4 @@
 
-// Expected output
-// 3
-// y
-// 8
-
 program TernaryTest
 
 const bool flag = true;

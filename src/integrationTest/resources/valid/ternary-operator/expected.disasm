@@ -1,0 +1,220 @@
+codeSize=343
+dataSize=3
+mainPC=187
+0: enter 1 1
+3: load_0
+4: exit
+5: return
+6: enter 1 1
+9: load_0
+10: exit
+11: return
+12: enter 1 1
+15: load_0
+16: arraylength
+17: exit
+18: return
+19: enter 1 2
+22: const_1
+23: store_1
+24: load_0
+25: const_0
+26: aload
+27: const_0
+28: jne 5 (=33)
+31: exit
+32: return
+33: load_0
+34: load_1
+35: aload
+36: const_0
+37: print
+38: load_1
+39: load_0
+40: const_0
+41: aload
+42: jeq 17 (=59)
+45: const 32
+50: const_0
+51: bprint
+52: load_1
+53: const_1
+54: add
+55: store_1
+56: jmp -23 (=33)
+59: exit
+60: return
+61: enter 2 3
+64: const_0
+65: store_2
+66: load_2
+67: const_1
+68: add
+69: store_2
+70: load_2
+71: load_0
+72: const_0
+73: aload
+74: jgt 12 (=86)
+77: load_0
+78: load_2
+79: aload
+80: load_1
+81: jne -15 (=66)
+84: exit
+85: return
+86: load_2
+87: load_0
+88: arraylength
+89: jge 14 (=103)
+92: load_0
+93: load_2
+94: load_1
+95: astore
+96: load_0
+97: const_0
+98: dup2
+99: aload
+100: const_1
+101: add
+102: astore
+103: exit
+104: return
+105: enter 2 3
+108: const_0
+109: store_2
+110: load_2
+111: load_1
+112: arraylength
+113: jge 17 (=130)
+116: load_0
+117: load_1
+118: load_2
+119: aload
+120: call -59 (=61)
+123: load_2
+124: const_1
+125: add
+126: store_2
+127: jmp -17 (=110)
+130: exit
+131: return
+132: enter 3 4
+135: load_0
+136: const_0
+137: dup
+138: astore
+139: const_1
+140: store_3
+141: load_0
+142: load_1
+143: load_3
+144: aload
+145: call -84 (=61)
+148: load_3
+149: load_1
+150: const_0
+151: aload
+152: jge 10 (=162)
+155: load_3
+156: const_1
+157: add
+158: store_3
+159: jmp -18 (=141)
+162: const_1
+163: store_3
+164: load_0
+165: load_2
+166: load_3
+167: aload
+168: call -107 (=61)
+171: load_3
+172: load_2
+173: const_0
+174: aload
+175: jge 10 (=185)
+178: load_3
+179: const_1
+180: add
+181: store_3
+182: jmp -18 (=164)
+185: exit
+186: return
+187: jmp 11 (=198)
+190: enter 0 0
+193: const_2
+194: exit
+195: return
+196: trap 255
+198: enter 0 4
+201: const_5
+202: const 6
+207: jle 6 (=213)
+210: jmp 6 (=216)
+213: jmp 13 (=226)
+216: const 8
+221: const_2
+222: sub
+223: jmp 4 (=227)
+226: const_3
+227: store_0
+228: load_0
+229: const_0
+230: print
+231: const 10
+236: const_0
+237: bprint
+238: load_0
+239: const_3
+240: jne 6 (=246)
+243: jmp 6 (=249)
+246: jmp 11 (=257)
+249: const 121
+254: jmp 8 (=262)
+257: const 110
+262: const_0
+263: bprint
+264: const_2
+265: newarray 1
+267: store_2
+268: load_2
+269: const_0
+270: const_1
+271: astore
+272: load_2
+273: const_1
+274: const_1
+275: const_0
+276: jeq 6 (=282)
+279: jmp 6 (=285)
+282: jmp 45 (=327)
+285: call -95 (=190)
+288: load_2
+289: const_0
+290: aload
+291: jle 6 (=297)
+294: jmp 6 (=300)
+297: jmp 11 (=308)
+300: const 8
+305: jmp 19 (=324)
+308: const_2
+309: const_3
+310: jle 6 (=316)
+313: jmp 6 (=319)
+316: jmp 7 (=323)
+319: const_1
+320: jmp 4 (=324)
+323: const_2
+324: jmp 4 (=328)
+327: const_5
+328: astore
+329: const 10
+334: const_0
+335: bprint
+336: load_2
+337: const_1
+338: aload
+339: const_0
+340: print
+341: exit
+342: return

@@ -1,6 +1,12 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     java
     application
+}
+
+repositories {
+    mavenCentral()
 }
 
 java {
@@ -11,7 +17,6 @@ java {
 
 val specificationDir = layout.projectDirectory.dir("spec")
 val librariesDir = layout.projectDirectory.dir("lib")
-val testDir = layout.projectDirectory.dir("test")
 val mjRuntimePackage = "rs.etf.pp1.mj.runtime"
 val mainPackage = "rs.ac.bg.etf.pp1"
 val relativePackagePath = mainPackage.replace(".", "/")
@@ -38,14 +43,22 @@ val runtimeClasspath = files(
     librariesDir.file(mjRuntimeJar),
 )
 
-dependencies {
-    implementation(runtimeClasspath)
-}
-
 sourceSets {
     main {
         java.srcDir(generatedSourceDir)
     }
+
+    create("integrationTest") {
+        java.srcDir("src/integrationTest/java")
+        compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+        runtimeClasspath += output + sourceSets.main.get().runtimeClasspath
+    }
+}
+
+dependencies {
+    implementation(runtimeClasspath)
+    "integrationTestImplementation"("org.junit.jupiter:junit-jupiter:6.1.3")
+    "integrationTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -108,6 +121,29 @@ tasks.compileJava {
     dependsOn(parserGen)
 }
 
+val integrationTest = tasks.register<Test>("integrationTest") {
+    description = "Runs compiler integration tests"
+    group = "verification"
+
+    val integrationTestSourceSet = sourceSets.getByName("integrationTest")
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    testLogging {
+        exceptionFormat = TestExceptionFormat.SHORT
+        showStackTraces = false
+        showStandardStreams = true
+    }
+    systemProperty("projectDir", project.projectDir.absolutePath)
+    inputs.dir(layout.projectDirectory.dir("src/integrationTest/resources"))
+    dependsOn("classes")
+    shouldRunAfter(tasks.test)
+}
+
+tasks.named("check") {
+    dependsOn(integrationTest)
+}
+
 application {
     mainClass.set("$mainPackage.Compiler")
 }
@@ -117,8 +153,8 @@ tasks.register<JavaExec>("mjCompile") {
 
     group = "compilation"
 
-    val sourceFile = testDir.file(project.findProperty("sourceFile")?.toString() ?: sourceFileName)
-    description = "Compiles an MJ program written in '${sourceFile.asFile.relativeTo(project.projectDir)}'"
+    val sourceFile = project.file(project.findProperty("sourceFile")?.toString() ?: sourceFileName)
+    description = "Compiles an MJ program written in '${sourceFile.relativeTo(project.projectDir)}'"
 
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("$mainPackage.Compiler")
@@ -126,7 +162,7 @@ tasks.register<JavaExec>("mjCompile") {
     inputs.file(sourceFile)
     outputs.file(outputFile)
 
-    args(sourceFile.asFile.absolutePath, outputFile.get().asFile.absolutePath)
+    args(sourceFile.absolutePath, outputFile.get().asFile.absolutePath)
 }
 
 fun JavaExec.configureRuntimeTask() {

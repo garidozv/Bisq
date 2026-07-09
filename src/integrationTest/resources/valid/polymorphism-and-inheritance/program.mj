@@ -1,23 +1,5 @@
 // Tests polymorphism and inheritance
 
-// Expected output for input 6:
-// 6
-// 6
-// 6
-// 6
-// 6
-// 6656
-// 945
-// 3936
-// 5670
-// 0
-//  OO 
-// OOOO
-// OOOO
-//  OO 
-// 0
-// NOT IMPLEMENTED
-
 program Test
 
 const int cinilac = 4, delilac = 3;
@@ -193,10 +175,10 @@ Displayable i1, i2[];
 			i++;
 		} while (i < 6);
 		
-		print(zapreminaS); print(eol); //659(656 sa zaokruzivanjem pri deljenju)
-		print(zapreminaK); print(eol); //945
-		print(tezinaS); print(eol); //659(656 sa zaokruzivanjem pri deljenju) * tezina
-		print(tezinaK); print(eol); //945 * tezina
+		print(zapreminaS); print(eol);
+		print(zapreminaK); print(eol);
+		print(tezinaS); print(eol);
+		print(tezinaK); print(eol);
 		
 		d1 = new Dot();
 		d2 = new Dash();

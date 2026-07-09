@@ -49,9 +49,9 @@ public class Compiler {
 			br = new BufferedReader(new FileReader(sourceCode));
 			Yylex lexer = new Yylex(br);
 			
-			// Syntactic analysis
+            // Syntactic analysis
             MJParser parser = new MJParser(lexer);
-            parser.loggingEnabled = true;
+            parser.loggingEnabled = false;
             Symbol rootNode = parser.parse();
 
             if (parser.errorDetected || rootNode == null || !(rootNode.value instanceof Program)) {
@@ -60,9 +60,6 @@ public class Compiler {
 
             Program programNode = (Program)(rootNode.value);
 
-            // Log program syntax tree
-            log.info(programNode.toString(""));
-			
 			TabUtils.init();
 			
 			// Semantic analysis

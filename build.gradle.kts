@@ -55,10 +55,19 @@ sourceSets {
     }
 }
 
+configurations {
+    named("integrationTestImplementation") {
+        extendsFrom(testImplementation.get())
+    }
+    named("integrationTestRuntimeOnly") {
+        extendsFrom(testRuntimeOnly.get())
+    }
+}
+
 dependencies {
     implementation(runtimeClasspath)
-    "integrationTestImplementation"("org.junit.jupiter:junit-jupiter:6.1.3")
-    "integrationTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<JavaExec>().configureEach {
@@ -73,7 +82,7 @@ val lexerGen = tasks.register<JavaExec>("lexerGen") {
     mainClass.set("JFlex.Main")
 
     inputs.file(specificationDir.file("mjlexer.lex"))
-    outputs.file(generatedSourcePackageDir.file("Yylex.java") )
+    outputs.file(generatedSourcePackageDir.file("Yylex.java"))
 
     args(
         "-d", generatedSourcePackageDir.asFile.path,
@@ -119,6 +128,10 @@ val parserGen = tasks.register<JavaExec>("parserGen") {
 
 tasks.compileJava {
     dependsOn(parserGen)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {

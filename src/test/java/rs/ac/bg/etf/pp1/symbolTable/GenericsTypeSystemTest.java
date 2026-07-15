@@ -3,7 +3,7 @@ package rs.ac.bg.etf.pp1.symbolTable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import rs.ac.bg.etf.pp1.symbolTable.generics.AppliedGenericTypeStruct;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
@@ -93,16 +93,16 @@ class GenericsTypeSystemTest {
         assertFalse(TabUtils.assignableTo(intBox, charBox));
         assertFalse(TabUtils.assignableTo(charBox, intBox));
         assertSame(Tab.intType, intBox.getTypeArguments().getFirst());
-        assertSame(box, intBox.getGenericDeclaration());
+        assertSame(box, intBox.getDeclaration());
         assertTrue(intBox.isClosed());
         assertTrue(intBox.isRefType());
 
         assertEquals(Struct.Class, box.getType().getKind());
-        assertFalse(box.getType() instanceof AppliedGenericTypeStruct);
+        assertFalse(box.getType() instanceof GenericTypeApplicationStruct);
 
         var openBox = GenericTypeUtils.createOpenApplication(box);
         assertTrue(openBox.isOpen());
-        assertSame(box, openBox.getGenericDeclaration());
+        assertSame(box, openBox.getDeclaration());
         assertSame(parameter.getType(), openBox.getTypeArguments().getFirst());
 
         var genericInterface = TabUtils.createGenericType("Source", Struct.Interface, List.of(TabUtils.createGenericParameter("E")));
@@ -154,17 +154,17 @@ class GenericsTypeSystemTest {
         Map<GenericParameterStruct, Struct> substitutions = new HashMap<>();
         substitutions.put(t, Tab.charType);
         substitutions.put(u, Tab.intType);
-        var substituted = AppliedGenericTypeStruct.substituteConstrainingType(composite, substitutions);
+        var substituted = GenericTypeUtils.substitute(composite, substitutions);
 
-        assertInstanceOf(AppliedGenericTypeStruct.class, substituted);
-        var substitutedPair = (AppliedGenericTypeStruct)substituted;
-        assertEquals(Tab.charType, ((AppliedGenericTypeStruct)substitutedPair.getTypeArguments().get(0)).getTypeArguments().getFirst());
-        var substitutedNested = (AppliedGenericTypeStruct)substitutedPair.getTypeArguments().get(1);
+        assertInstanceOf(GenericTypeApplicationStruct.class, substituted);
+        var substitutedPair = (GenericTypeApplicationStruct)substituted;
+        assertEquals(Tab.charType, ((GenericTypeApplicationStruct)substitutedPair.getTypeArguments().get(0)).getTypeArguments().getFirst());
+        var substitutedNested = (GenericTypeApplicationStruct)substitutedPair.getTypeArguments().get(1);
         assertEquals(Tab.intType, substitutedNested.getTypeArguments().get(1));
-        assertSame(composite, AppliedGenericTypeStruct.substituteConstrainingType(composite, Map.of()));
+        assertSame(composite, GenericTypeUtils.substitute(composite, Map.of()));
 
-        var array = AppliedGenericTypeStruct.createArrayType(t);
-        var substitutedArray = AppliedGenericTypeStruct.substituteConstrainingType(array, substitutions);
+        var array = GenericTypeUtils.createArrayType(t);
+        var substitutedArray = GenericTypeUtils.substitute(array, substitutions);
         assertEquals(Struct.Array, substitutedArray.getKind());
         assertSame(Tab.charType, substitutedArray.getElemType());
     }
@@ -181,9 +181,9 @@ class GenericsTypeSystemTest {
         var result = TabUtils.createGenericParameter("R", marker);
         var method = TabUtils.createGenericMethod("convert", result.getType(), List.of(t, u, result));
 
-        AppliedGenericTypeStruct.validateTypeArguments(method, List.of(Tab.intType, container.applyArguments(List.of(Tab.intType)), marker));
+        method.validateAndCreateSubstitution(List.of(Tab.intType, container.applyArguments(List.of(Tab.intType)), marker));
         assertThrows(IllegalArgumentException.class, () ->
-                AppliedGenericTypeStruct.validateTypeArguments(method, List.of(Tab.intType, container.applyArguments(List.of(Tab.charType)), marker)));
+                method.validateAndCreateSubstitution(List.of(Tab.intType, container.applyArguments(List.of(Tab.charType)), marker)));
 
         var forward = TabUtils.createGenericParameter("U", containerOfT);
         assertThrows(IllegalArgumentException.class, () -> TabUtils.createGenericMethod("forward", Tab.noType, List.of(forward, t)));
@@ -207,12 +207,12 @@ class GenericsTypeSystemTest {
         Map<GenericParameterStruct, Struct> substitutions = new HashMap<>();
         substitutions.put((GenericParameterStruct)keyParameter.getType(), Tab.intType);
         substitutions.put((GenericParameterStruct)valueParameter.getType(), Tab.charType);
-        var closedBase = AppliedGenericTypeStruct.substituteConstrainingType(pair.getType().getElemType(), substitutions);
+        var closedBase = GenericTypeUtils.substitute(pair.getType().getElemType(), substitutions);
 
         assertTrue(pairOfIntAndChar.isClosed());
-        assertInstanceOf(AppliedGenericTypeStruct.class, closedBase);
-        assertSame(base, ((AppliedGenericTypeStruct)closedBase).getGenericDeclaration());
-        assertEquals(List.of(Tab.charType), ((AppliedGenericTypeStruct)closedBase).getTypeArguments());
+        assertInstanceOf(GenericTypeApplicationStruct.class, closedBase);
+        assertSame(base, ((GenericTypeApplicationStruct)closedBase).getDeclaration());
+        assertEquals(List.of(Tab.charType), ((GenericTypeApplicationStruct)closedBase).getTypeArguments());
     }
 
     @Test
@@ -233,6 +233,60 @@ class GenericsTypeSystemTest {
     }
 
     @Test
+    void openMethodArgumentsAreCheckedThroughTheirConstraints() {
+        var base = classWithFields("baseField");
+        var derived = classWithFields("baseField", "derivedField");
+        derived.setElementType(base);
+
+        var required = TabUtils.createGenericParameter("T", base);
+        var method = TabUtils.createGenericMethod("accept", Tab.noType, List.of(required));
+        var sufficientlyConstrained = TabUtils.createGenericParameter("D", derived);
+        var unbounded = TabUtils.createGenericParameter("U");
+
+        var substitution = method.validateAndCreateSubstitution(List.of(sufficientlyConstrained.getType()));
+        assertSame(sufficientlyConstrained.getType(), substitution.get((GenericParameterStruct)required.getType()));
+        assertThrows(IllegalArgumentException.class, () -> method.validateAndCreateSubstitution(List.of(unbounded.getType())));
+
+        var derivedRequired = TabUtils.createGenericMethod("derived", Tab.noType, List.of(TabUtils.createGenericParameter("T", derived)));
+        var onlyBase = TabUtils.createGenericParameter("D", base);
+        assertThrows(IllegalArgumentException.class, () -> derivedRequired.validateAndCreateSubstitution(List.of(onlyBase.getType())));
+    }
+
+    @Test
+    void ordinaryMemberMethodsUseTheirGenericOwnerSubstitution() {
+        var ownerParameter = TabUtils.createGenericParameter("T");
+        var owner = TabUtils.createGenericType("Box", Struct.Class, List.of(ownerParameter));
+        var method = new Obj(Obj.Meth, "get", ownerParameter.getType());
+        var ownerApplication = owner.applyArguments(List.of(Tab.intType));
+
+        assertEquals(Obj.Meth, method.getKind());
+        assertSame(Obj.class, method.getClass());
+        assertSame(Tab.intType, GenericTypeUtils.substitute(method.getType(), ownerApplication.getSubstitution()));
+    }
+
+    @Test
+    void appliedGenericInheritanceSubstitutesArgumentsAutomatically() {
+        var baseParameter = TabUtils.createGenericParameter("T");
+        var base = TabUtils.createGenericType("Base", Struct.Class, List.of(baseParameter));
+        var derivedParameter = TabUtils.createGenericParameter("U");
+        var derived = TabUtils.createGenericType("Derived", Struct.Class, List.of(derivedParameter));
+        derived.getType().setElementType(base.applyArguments(List.of(derivedParameter.getType())));
+        var interfaceParameter = TabUtils.createGenericParameter("V");
+        var genericInterface = TabUtils.createGenericType("Consumer", Struct.Interface, List.of(interfaceParameter));
+        derived.getType().addImplementedInterface(
+                genericInterface.applyArguments(List.of(derivedParameter.getType())));
+
+        var derivedInt = derived.applyArguments(List.of(Tab.intType));
+        assertTrue(TabUtils.assignableTo(base.applyArguments(List.of(Tab.intType)), derivedInt));
+        assertFalse(TabUtils.assignableTo(base.applyArguments(List.of(Tab.charType)), derivedInt));
+        assertTrue(TabUtils.assignableTo(genericInterface.applyArguments(List.of(Tab.intType)), derivedInt));
+        assertFalse(TabUtils.assignableTo(genericInterface.applyArguments(List.of(Tab.charType)), derivedInt));
+        assertEquals(base.applyArguments(List.of(Tab.intType)), derivedInt.getElemType());
+        assertEquals(List.of(genericInterface.applyArguments(List.of(Tab.intType))),
+                derivedInt.getImplementedInterfaces());
+    }
+
+    @Test
     void invalidTypesApplicationsAndDeclarationsAreRejected() {
         var parameter = TabUtils.createGenericParameter("T");
         var box = TabUtils.createGenericType("Box", Struct.Class, List.of(parameter));
@@ -250,13 +304,12 @@ class GenericsTypeSystemTest {
 
         assertThrows(IllegalArgumentException.class, () -> box.applyArguments(List.of()));
         assertThrows(IllegalArgumentException.class, () -> GenericTypeUtils.createOpenApplication(null));
-        assertThrows(IllegalArgumentException.class, () -> AppliedGenericTypeStruct.validateTypeArguments(null, List.of()));
         assertThrows(IllegalArgumentException.class, () -> box.applyArguments(List.of(Tab.noType)));
         assertThrows(IllegalArgumentException.class, () -> box.applyArguments(List.of(Tab.nullType)));
         assertThrows(IllegalArgumentException.class, () -> box.applyArguments(Collections.singletonList(null)));
-        assertThrows(IllegalArgumentException.class, () -> AppliedGenericTypeStruct.createArrayType(TabUtils.setType));
-        assertThrows(IllegalArgumentException.class, () -> AppliedGenericTypeStruct.createArrayType(new Struct(Struct.Array, TabUtils.setType)));
-        assertEquals(Struct.Array, AppliedGenericTypeStruct.createArrayType(Tab.intType).getKind());
+        assertThrows(IllegalArgumentException.class, () -> GenericTypeUtils.createArrayType(TabUtils.setType));
+        assertThrows(IllegalArgumentException.class, () -> GenericTypeUtils.createArrayType(new Struct(Struct.Array, TabUtils.setType)));
+        assertEquals(Struct.Array, GenericTypeUtils.createArrayType(Tab.intType).getKind());
 
         assertThrows(IllegalArgumentException.class, () -> new GenericTypeObj("Bad", Tab.intType, List.of(parameter)));
         assertThrows(IllegalArgumentException.class, () -> new GenericTypeObj("Bad", null, List.of(parameter)));

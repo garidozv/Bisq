@@ -79,7 +79,7 @@ public class TabUtils {
 	}
 
 	/**
-     * Creates, but does not insert in symbol table, a generic global or member method.
+	 * Creates, but does not insert in symbol table, a generic global method.
      */
 	public static GenericMethodObj createGenericMethod(String name, Struct returnType, List<Obj> genericParameters) {
         if (genericParameters == null)
@@ -108,9 +108,9 @@ public class TabUtils {
 	public static boolean equals(Struct first, Struct second) {
 		if (first == second) return true;
 		if (first == null || second == null) return false;
-		if (first instanceof GenericParameterStruct || first instanceof AppliedGenericTypeStruct)
+		if (first instanceof GenericParameterStruct || first instanceof GenericTypeApplicationStruct)
             return first.equals(second);
-		if (second instanceof GenericParameterStruct || second instanceof AppliedGenericTypeStruct)
+		if (second instanceof GenericParameterStruct || second instanceof GenericTypeApplicationStruct)
             return second.equals(first);
 		return first.equals(second);
 	}
@@ -128,13 +128,11 @@ public class TabUtils {
      */
 	public static boolean compatibleWith(Struct first, Struct second) {
 		if (first == null || second == null) return false;
-		if (first instanceof GenericParameterStruct parameter)
-            return parameter.compatibleWith(second);
-		if (second instanceof GenericParameterStruct parameter)
-            return parameter.compatibleWith(first);
 		if (equals(first, second)) return true;
 		if (first == Tab.nullType) return isRefType(second);
 		if (second == Tab.nullType) return isRefType(first);
+		if (first instanceof GenericParameterStruct || second instanceof GenericParameterStruct)
+			return assignableTo(first, second) || assignableTo(second, first);
 		return first.compatibleWith(second);
 	}
 
@@ -172,8 +170,10 @@ public class TabUtils {
 	}
 
 	private static boolean implementsInterface(Struct source, Struct destination) {
-		for (var implemented : source.getImplementedInterfaces()) {
-			if (equals(implemented, destination)) return true;
+		for (var current = source; current != null; current = current.getElemType()) {
+			for (var implemented : current.getImplementedInterfaces()) {
+				if (equals(implemented, destination)) return true;
+			}
 		}
 		return false;
 	}

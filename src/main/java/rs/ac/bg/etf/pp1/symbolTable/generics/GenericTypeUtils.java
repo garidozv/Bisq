@@ -3,6 +3,7 @@ package rs.ac.bg.etf.pp1.symbolTable.generics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.Set;
 
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
@@ -10,11 +11,12 @@ import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
 public final class GenericTypeUtils {
+    private GenericTypeUtils() {}
 
     /**
      * Returns the declaration applied to its own parameters, such as {@code Box<T>}.
      */
-    public static AppliedGenericTypeStruct createOpenApplication(GenericTypeObj declaration) {
+    public static GenericTypeApplicationStruct createOpenApplication(GenericTypeObj declaration) {
         if (declaration == null)
             throw new IllegalArgumentException("A generic application needs a declaration");
         var parameters = new ArrayList<Struct>(declaration.getTypeParameterCount());
@@ -47,7 +49,7 @@ public final class GenericTypeUtils {
             var element = type.getElemType();
             return element != null && element != TabUtils.setType && isValidTypeArgument(element);
         }
-        if (type instanceof AppliedGenericTypeStruct genericType) {
+        if (type instanceof GenericTypeApplicationStruct genericType) {
             for (var argument : genericType.getTypeArguments()) {
                 if (!isValidTypeArgument(argument)) return false;
             }
@@ -55,12 +57,53 @@ public final class GenericTypeUtils {
         return true;
     }
 
+    /** Substitutes generic parameters recursively through arrays and generic type applications. */
+    public static Struct substitute(Struct type, Map<GenericParameterStruct, ? extends Struct> substitutions) {
+        if (type == null) return null;
+        if (substitutions == null)
+            throw new IllegalArgumentException("Substitutions cannot be null");
+        if (type instanceof GenericParameterStruct parameter) {
+            var substitution = substitutions.get(parameter);
+            return substitution != null ? substitution : parameter;
+        }
+        if (type.getKind() == Struct.Array) {
+            var oldElement = type.getElemType();
+            var newElement = substitute(oldElement, substitutions);
+            return newElement == oldElement ? type : createArrayType(newElement);
+        }
+        if (type instanceof GenericTypeApplicationStruct application) {
+            var newArguments = new ArrayList<Struct>(application.getTypeArguments().size());
+            var changed = false;
+            for (var oldArgument : application.getTypeArguments()) {
+                var newArgument = substitute(oldArgument, substitutions);
+                newArguments.add(newArgument);
+                changed |= newArgument != oldArgument;
+            }
+            return changed ? application.getDeclaration().applyArguments(newArguments) : type;
+        }
+        return type;
+    }
+
+    public static Struct createArrayType(Struct elementType) {
+        if (!isValidTypeArgument(elementType) || elementType == TabUtils.setType)
+            throw new IllegalArgumentException("Invalid array element type");
+        return new Struct(Struct.Array, elementType);
+    }
+
+    static int typeHashCode(Struct type) {
+        if (type instanceof GenericParameterStruct || type instanceof GenericTypeApplicationStruct)
+            return type.hashCode();
+        if (type != null && type.getKind() == Struct.Array)
+            return 31 * Struct.Array + typeHashCode(type.getElemType());
+        return type == null ? 0 : type.getKind();
+    }
+
     private static void collectContainedTypeParameters(Struct type, Set<GenericParameterStruct> result) {
         if (type instanceof GenericParameterStruct parameter) {
             result.add(parameter);
             return;
         }
-        if (type instanceof AppliedGenericTypeStruct genericType) {
+        if (type instanceof GenericTypeApplicationStruct genericType) {
             for (var argument : genericType.getTypeArguments()) {
                 collectContainedTypeParameters(argument, result);
             }

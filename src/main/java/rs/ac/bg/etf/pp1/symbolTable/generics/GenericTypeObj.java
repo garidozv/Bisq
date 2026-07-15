@@ -12,11 +12,11 @@ public final class GenericTypeObj extends GenericObj {
     public GenericTypeObj(String name, Struct type, List<Obj> typeParameters) {
         super(Obj.Type, name, type, typeParameters);
 
-        if (type == null || type instanceof AppliedGenericTypeStruct || (type.getKind() != Struct.Class && type.getKind() != Struct.Interface))
+        if (type == null || type instanceof GenericTypeApplicationStruct || (type.getKind() != Struct.Class && type.getKind() != Struct.Interface))
             throw new IllegalArgumentException("Only an ordinary class and interface types can be generic.");
     }
 
-    public AppliedGenericTypeStruct applyArguments(List<Struct> arguments) {
-        return new AppliedGenericTypeStruct(this, arguments);
+    public GenericTypeApplicationStruct applyArguments(List<Struct> arguments) {
+        return new GenericTypeApplicationStruct(this, arguments);
     }
 }

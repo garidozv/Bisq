@@ -2,7 +2,8 @@ package rs.ac.bg.etf.pp1;
 
 import org.apache.log4j.Logger;
 
-import rs.ac.bg.etf.pp1.TabUtils.MethodTypes;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.ast.ActPars_Expr;
 import rs.ac.bg.etf.pp1.ast.ActPars_ExprList;
 import rs.ac.bg.etf.pp1.ast.CallPars_ActPars;
@@ -41,7 +42,6 @@ import rs.ac.bg.etf.pp1.ast.Factor_Expr;
 import rs.ac.bg.etf.pp1.ast.Factor_NewArray;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.Factor_NumConst;
-import rs.ac.bg.etf.pp1.ast.ForPostStatement;
 import rs.ac.bg.etf.pp1.ast.ForPostStatement_DesignatorStatement;
 import rs.ac.bg.etf.pp1.ast.ForPostStatement_Epsilon;
 import rs.ac.bg.etf.pp1.ast.FormParVar_Array;
@@ -831,7 +831,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var trueStruct = expr.getExpr().struct;
 		var falseStruct = expr.getExpr1().struct;
 		
-		if (!trueStruct.compatibleWith(falseStruct)) {
+		if (!TabUtils.compatibleWith(trueStruct, falseStruct)) {
 			report_error("Ternary operator expressions must be of compatible types", expr);
 			expr.struct = Tab.noType;
 		}
@@ -938,7 +938,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 					condFact);
 			condFact.struct = Tab.noType;
 		} 
-		else if (!firstOperandStruct.compatibleWith(secondOperandStruct)) {
+		else if (!TabUtils.compatibleWith(firstOperandStruct, secondOperandStruct)) {
 			report_error("Attemp to compare variables of non-compatible types", condFact);
 			condFact.struct = Tab.noType;
 		} 

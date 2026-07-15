@@ -6,7 +6,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
-import rs.ac.bg.etf.pp1.TabUtils.MethodTypes;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;

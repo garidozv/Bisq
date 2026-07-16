@@ -57,7 +57,8 @@ terminal
 	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
 	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, LE, CONST,
 	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
-	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK, FOR;
+	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK, FOR,
+	TURBOFISH;
 	
 terminal String IDENT;
 terminal Integer NUMBER;
@@ -72,14 +73,14 @@ nonterminal
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
 	FormParVar, ClassName, ExtendedClassName, InterfaceName,
-	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement;
+	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement,
+	GenericMethodSignature, TypeArgumentList, TypeParameters, TypeParameterList, TypeParameter;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
-	Designator, MethodName, ClassDecl, MethodDecl;
+	Designator, MethodName, ClassDecl, MethodDecl, GenericMethodDecl, CallableRef;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
-	ExprNonTern, ExprTern, Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact,
-	Type;
+	ExprNonTern, ExprTern, Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact, Type, TypeAtom;
 	
 precedence left ELSE;
 
@@ -139,12 +140,14 @@ VarDecl ::=	(VarDecl_Valid) Type VarName VarDeclNoType SEMI
 
 MethodDeclList ::=	(MethodDeclList_MethodDecl) MethodDeclList MethodDecl
 					|
+					(MethodDeclList_GenericMethodDecl) MethodDeclList GenericMethodDecl
+					|
 					(MethodDeclList_Epsilon) /* epsilon */
 					;
 
 ClassBody ::=	(ClassBody_Fields) VarDeclList
 				|
-				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE  
+				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE
 				;
 
 ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedClassName LBRACE ClassBody RBRACE
@@ -178,6 +181,11 @@ MethodSignature ::=	(MethodSignature_NoPars) MethodReturnType MethodName LPAREN 
 					|
 					(MethodSignature_Pars) MethodReturnType MethodName LPAREN FormPars RPAREN
 					;
+
+GenericMethodSignature ::=	(GenericMethodSignature_NoPars) TypeParameters MethodReturnType MethodName LPAREN RPAREN
+                            |
+                            (GenericMethodSignature_Pars) TypeParameters MethodReturnType MethodName LPAREN FormPars RPAREN
+                            ;
 					
 MethodReturnType ::=	(MethodReturnType_Void) VOID
 						|
@@ -195,6 +203,9 @@ VarDeclList ::=	(VarDeclList_VarDecl) VarDeclList VarDecl
 MethodDecl ::=	(MethodDecl) MethodSignature VarDeclList LBRACE StatementList RBRACE
 				;
 
+GenericMethodDecl ::=	(GenericMethodDecl) GenericMethodSignature VarDeclList LBRACE StatementList RBRACE
+					    ;
+
 FormPars ::= 	(FormPars_FormParVar) FormParVar
 				|
 				(FormPars_FormParVarList) FormPars COMMA FormParVar
@@ -208,8 +219,31 @@ FormParVar ::=	(FormParVar_NonArray) Type IDENT
 				{: parser.report_recovered_error(); :}
 				;
 
-Type ::=	(Type) IDENT
+TypeParameters ::=	(TypeParameters_Present) LT TypeParameterList GT
+					;
+
+TypeParameterList ::=	(TypeParameterList_Parameter) TypeParameter
+						|
+						(TypeParameterList_List) TypeParameterList COMMA TypeParameter
+						;
+
+TypeParameter ::=	(TypeParameter_Unbounded) IDENT
+					|
+					(TypeParameter_Bounded) IDENT COL Type
+					;
+
+TypeArgumentList ::=	(TypeArgumentList_Type) Type
+                        |
+                        (TypeArgumentList_List) TypeArgumentList COMMA Type
+                        ;
+
+Type ::=	(Type_Atom) TypeAtom
+			|
+			(Type_Array) Type LBRACK RBRACK
 			;
+
+TypeAtom ::=    (TypeAtom_Ident) IDENT
+                ;
 			
 StatementList ::= 	(StatementList_Statement) StatementList Statement
 					|
@@ -273,7 +307,7 @@ DoToken ::=	(DoToken) DO
 
 DesignatorStatement ::= (DesignatorStatement_AssignExpr) Designator Assignop Expr
 						|
-						(DesignatorStatement_Call) Designator CallPars
+						(DesignatorStatement_Call) CallableRef CallPars
 						|
 						(DesignatorStatement_Inc) Designator INC
 						|
@@ -294,6 +328,11 @@ ActPars ::=	(ActPars_Expr) Expr
 			|
 			(ActPars_ExprList) ActPars COMMA Expr
 			;
+
+CallableRef ::=	(CallableRef_Plain) Designator
+				|
+				(CallableRef_Applied) Designator TURBOFISH TypeArgumentList GT
+				;
 			
 
 Condition ::= 	(Condition_Valid) ConditionList
@@ -341,7 +380,7 @@ ColToken ::=	(ColToken) COL
 
 ExprNonTern ::=	(ExprNonTern_ExprList) ExprList
 				|
-				(ExprNonTern_Map) Designator MAP Designator
+				(ExprNonTern_Map) CallableRef MAP Designator
 				;	
 				
 Term ::= 	(Term_Factor) Factor
@@ -351,7 +390,7 @@ Term ::= 	(Term_Factor) Factor
 
 Factor ::= 	(Factor_Designator) Designator
 			|
-			(Factor_DesignatorCall) Designator CallPars
+			(Factor_DesignatorCall) CallableRef CallPars
 			|
 			(Factor_NumConst) NUMBER
 			|
@@ -359,9 +398,9 @@ Factor ::= 	(Factor_Designator) Designator
 			|
 			(Factor_BoolConst) BOOL
 			|
-			(Factor_NewArray) NEW Type LBRACK Expr RBRACK
+			(Factor_NewArray) NEW TypeAtom LBRACK Expr RBRACK
 			|
-			(Factor_NewObject) NEW Type CallPars
+			(Factor_NewObject) NEW TypeAtom CallPars
 			|
 			(Factor_Expr) LPAREN Expr RPAREN
 			;

@@ -12,6 +12,9 @@ import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
+import rs.ac.bg.etf.pp1.ast.CallableRef;
+import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.CallableRef_Plain;
 import rs.ac.bg.etf.pp1.ast.ColToken;
 import rs.ac.bg.etf.pp1.ast.CondFact_Expr;
 import rs.ac.bg.etf.pp1.ast.CondFact_RelopExpr;
@@ -414,6 +417,11 @@ public class CodeGenerator extends VisitorAdaptor {
 			return -1;
 		}
 	}
+
+    private static Designator getCallableDesignator(CallableRef callableRef) {
+        if (callableRef instanceof CallableRef_Plain plain) return plain.getDesignator();
+        return ((CallableRef_Applied)callableRef).getDesignator();
+    }
 	
 	public int getStartPc() {
 		return startPc;
@@ -451,7 +459,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
-		generateMethodCall(factor.getDesignator());
+		generateMethodCall(getCallableDesignator(factor.getCallableRef()));
 	}
 	
 	@Override
@@ -488,7 +496,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		var objectType = factor.getType().struct;
+		var objectType = factor.getTypeAtom().struct;
 		
 		Code.put(Code.new_);
 		Code.put2(objectType.getNumberOfFields() * VarSize);
@@ -546,8 +554,8 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(ExprNonTern_Map expr) {
-		
-		var methodObj = expr.getDesignator().obj;
+		var methodDesignator = getCallableDesignator(expr.getCallableRef());
+		var methodObj = methodDesignator.obj;
 		// Create dummy objects for global temporary variables that are used
 		var arr = TabUtils.createDummyObj(Obj.Var, 0, true);
 		var i = TabUtils.createDummyObj(Obj.Var, 1, true);
@@ -570,7 +578,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		if (methodObj.getFpPos() != MethodTypes.GLOBAL.value) {
 			// Generate the object address for 'this' parameter
-			expr.getDesignator().traverseBottomUp(this);
+			methodDesignator.traverseBottomUp(this);
 		}
 		
 		// Load the method argument 'arr[i]'
@@ -578,7 +586,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.load(i);
 		Code.put(Code.aload);
 		// Generate method call code
-		generateMethodCall(expr.getDesignator());
+		generateMethodCall(methodDesignator);
 		// Add the return value to local sum
 		Code.put(Code.add);
 		// Load condition values 'i' and 'len(arr) - 1'
@@ -633,10 +641,11 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {
-		generateMethodCall(designatorStatement.getDesignator());
+		var methodDesignator = getCallableDesignator(designatorStatement.getCallableRef());
+		generateMethodCall(methodDesignator);
 		
 		// If method returns a value it's never used, so we have to clean the expression stack
-		if (!designatorStatement.getDesignator().obj.getType().equals(Tab.noType)) {
+		if (!methodDesignator.obj.getType().equals(Tab.noType)) {
 			Code.put(Code.pop);
 		}
 	}

@@ -8,6 +8,8 @@ import rs.ac.bg.etf.pp1.ast.ActPars_Expr;
 import rs.ac.bg.etf.pp1.ast.ActPars_ExprList;
 import rs.ac.bg.etf.pp1.ast.CallPars_ActPars;
 import rs.ac.bg.etf.pp1.ast.CallPars_Empty;
+import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.CallableRef_Plain;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.ClassName;
@@ -64,6 +66,9 @@ import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.ast.Term_Factor;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.Type;
+import rs.ac.bg.etf.pp1.ast.TypeAtom_Ident;
+import rs.ac.bg.etf.pp1.ast.Type_Array;
+import rs.ac.bg.etf.pp1.ast.Type_Atom;
 import rs.ac.bg.etf.pp1.ast.VarName_Array;
 import rs.ac.bg.etf.pp1.ast.VarName_NonArray;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
@@ -238,7 +243,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 	
 	@Override
-	public void visit(Type type) {
+	public void visit(TypeAtom_Ident type) {
 		var typeName = type.getI1();
 		var typeObj = Tab.find(typeName);
 		
@@ -254,6 +259,30 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			currentType = typeObj.getType();
 		}
 		
+		type.struct = currentType;
+	}
+
+	@Override
+	public void visit(Type_Atom type) {
+		currentType = type.getTypeAtom().struct;
+		type.struct = currentType;
+	}
+
+	@Override
+	public void visit(Type_Array type) {
+		var elementType = type.getType().struct;
+
+		if (elementType.equals(Tab.noType)) {
+			currentType = Tab.noType;
+		}
+		else if (elementType.equals(TabUtils.setType)) {
+			report_error("Array of sets is not supported", type);
+			currentType = Tab.noType;
+		}
+		else {
+			currentType = new Struct(Struct.Array, elementType);
+		}
+
 		type.struct = currentType;
 	}
 	
@@ -713,12 +742,22 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(Factor_Expr factor) {
 		factor.struct = factor.getExpr().struct;
 	}
+
+	@Override
+	public void visit(CallableRef_Plain callableRef) {
+		callableRef.obj = callableRef.getDesignator().obj;
+	}
+
+	@Override
+	public void visit(CallableRef_Applied callableRef) {
+		callableRef.obj = callableRef.getDesignator().obj;
+	}
 	
 	// TODO: Add reserved keywords (this, ...)
 	
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
-		var designatorObj = factor.getDesignator().obj;
+		var designatorObj = factor.getCallableRef().obj;
 		var callParsStruct = factor.getCallPars().struct;
 		
 		if (designatorObj.equals(Tab.noObj)) {
@@ -746,32 +785,36 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewArray factor) {
-		if (currentType == null) {
+		var elementType = factor.getTypeAtom().struct;
+
+		if (elementType == null || elementType.equals(Tab.noType)) {
 			factor.struct = Tab.noType;
 		}
 		else if (!factor.getExpr().struct.equals(Tab.intType)) {
 			report_error("Array creation with a non-integer size value", factor);
 			factor.struct = Tab.noType;
 		}
-		else if (currentType.equals(TabUtils.setType)) {
-			factor.struct = currentType;
+		else if (elementType.equals(TabUtils.setType)) {
+			factor.struct = elementType;
 		}
 		else {
-			factor.struct = new Struct(Struct.Array, currentType);
+			factor.struct = new Struct(Struct.Array, elementType);
 		}
 	}
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		if (currentType == null) {
+		var objectType = factor.getTypeAtom().struct;
+
+		if (objectType == null || objectType.equals(Tab.noType)) {
 			factor.struct = Tab.noType;
 		}
-		else if (currentType.getKind() != Struct.Class) {
+		else if (objectType.getKind() != Struct.Class) {
 			report_error("Attempt to create an object of a non-class type", factor);
 			factor.struct = Tab.noType;
 		}
 		else {
-			factor.struct = currentType;
+			factor.struct = objectType;
 		}
 	}
 	
@@ -851,8 +894,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(ExprNonTern_Map expr) {
-		var leftObj = expr.getDesignator().obj;
-		var righObj = expr.getDesignator1().obj;
+		var leftObj = expr.getCallableRef().obj;
+		var righObj = expr.getDesignator().obj;
 		
 		if (righObj.getKind() != Obj.Var && righObj.getKind() != Obj.Fld || 
 				righObj.getType().getKind() != Struct.Array || 
@@ -1021,7 +1064,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {
-		var designatorObj = designatorStatement.getDesignator().obj;
+		var designatorObj = designatorStatement.getCallableRef().obj;
 		
 		if (designatorObj.equals(Tab.noObj)) {
 			return;

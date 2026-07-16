@@ -44,7 +44,7 @@ import java_cup.runtime.Symbol;
 " " 	{ }
 "\b" 	{ }
 "\t" 	{ }
-"\r\n" 	{ }
+("\r\n"|"\r"|"\n") 	{ }
 "\f" 	{ }
 
 // Keywords
@@ -72,6 +72,7 @@ import java_cup.runtime.Symbol;
 
 // Operators
 
+"::<" 		{ return new_symbol(sym.TURBOFISH, yytext()); }
 "+" 		{ return new_symbol(sym.ADD, 	yytext()); }
 "-" 		{ return new_symbol(sym.SUB, 	yytext()); }
 "*" 		{ return new_symbol(sym.MUL, 	yytext()); }
@@ -105,7 +106,7 @@ import java_cup.runtime.Symbol;
 
 "//" 				{ yybegin(COMMENT); }
 <COMMENT> . 		{ yybegin(COMMENT); }
-<COMMENT> "\r\n" 	{ yybegin(YYINITIAL); }
+<COMMENT> ("\r\n"|"\r"|"\n") 	{ yybegin(YYINITIAL); }
 
 
 // Tokens

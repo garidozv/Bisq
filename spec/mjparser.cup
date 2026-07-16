@@ -74,10 +74,13 @@ nonterminal
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
 	FormParVar, ClassName, ExtendedClassName, InterfaceName,
 	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement,
-	GenericMethodSignature, TypeArgumentList, TypeParameters, TypeParameterList, TypeParameter;
+	GenericMethodSignature, TypeParameters, TypeParameterList;
+
+nonterminal rs.ac.bg.etf.pp1.symbolTable.generics.TypeArguments
+	TypeArgumentList;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
-	Designator, MethodName, ClassDecl, MethodDecl, GenericMethodDecl, CallableRef;
+	Designator, MethodName, ClassDecl, MethodDecl, GenericMethodDecl, CallableRef, TypeParameter;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
 	ExprNonTern, ExprTern, Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact, Type, TypeAtom;

@@ -35,6 +35,7 @@ public abstract class GenericObj extends Obj {
         return (GenericParameterStruct)typeParameters.get(index).getType();
     }
 
+    /** Validates type arguments and returns their substitution for this declaration's parameters. */
     public final Map<GenericParameterStruct, Struct> validateAndCreateSubstitution(List<Struct> arguments) {
         if (arguments == null || arguments.size() != getTypeParameterCount()) {
             var actual = arguments == null ? 0 : arguments.size();

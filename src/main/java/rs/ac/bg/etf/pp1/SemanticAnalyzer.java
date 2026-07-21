@@ -123,26 +123,6 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 	private Logger log = Logger.getLogger(getClass());
 
-	private static boolean isMapCompatibleMethod(Obj method) {
-		var hasThisParam = method.getFpPos() != MethodTypes.GLOBAL.value;
-		var explicitParmCnt = method.getLevel() - (hasThisParam ? 1 : 0);
-
-		if (explicitParmCnt != 1) {
-			return false;
-		}
-
-		var firstParamType = method.getLocalSymbols().stream()
-				.skip(hasThisParam ? 1 : 0)
-				.findFirst()
-				.get().getType();
-
-		if (!firstParamType.equals(Tab.intType)) {
-			return false;
-		}
-
-		return true;
-	}
-
 	private static boolean isCallableWith(Obj method, Struct argsStruct) {
 		return isCallableWith(method, argsStruct, type -> type);
 	}
@@ -214,6 +194,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		return true;
 	}
+
+    private static void tryMarkGenericParameterArrayElement(Struct type) {
+        if (type instanceof GenericParameterStruct parameter)
+            parameter.markUsedAsArrayElementType();
+    }
 
 	public void report_error(String message, SyntaxNode info) {
 		isErrorDetected = true;
@@ -302,6 +287,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(Type_Array type) {
 		var elementType = type.getType().struct;
+		tryMarkGenericParameterArrayElement(elementType);
 
 		if (elementType.equals(Tab.noType)) {
 			currentType = Tab.noType;
@@ -369,6 +355,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var name = varName.getI1();
 		var varObj = getSymbolObj(name);
 		var arrayTypeStruct = new Struct(Struct.Array, currentType);
+        tryMarkGenericParameterArrayElement(currentType);
 
 		if (varObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", name), varName);
@@ -503,6 +490,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	public void visit(FormParVar_Array formParVar) {
 		var paramName = formParVar.getI2();
 		var paramObj = Tab.currentScope.findSymbol(paramName);
+		tryMarkGenericParameterArrayElement(currentType);
 
 		if (paramObj != null) {
 			report_error(String.format("Multiple definitions of the name '%s'", paramName), formParVar);
@@ -834,6 +822,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(Factor_NewArray factor) {
 		var elementType = factor.getTypeAtom().struct;
+		tryMarkGenericParameterArrayElement(elementType);
 
 		if (elementType == null || elementType.equals(Tab.noType)) {
 			factor.struct = Tab.noType;
@@ -942,28 +931,31 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 	@Override
 	public void visit(ExprNonTern_Map expr) {
-		var leftObj = expr.getCallableRef().obj;
-		var righObj = expr.getDesignator().obj;
+        var rightObj = expr.getDesignator().obj;
 
-		if (righObj.getKind() != Obj.Var && righObj.getKind() != Obj.Fld ||
-				righObj.getType().getKind() != Struct.Array ||
-				!righObj.getType().getElemType().equals(Tab.intType)) {
-			report_error("Right operand of 'map' operator must be an integer array", expr);
-			expr.struct = Tab.noType;
-		}
-		else if (leftObj.getKind() != Obj.Meth || !leftObj.getType().equals(Tab.intType)) {
-			report_error("Left operand of 'map' operator must be method with integer return type", expr);
-			expr.struct = Tab.noType;
-		}
-		else if (!isMapCompatibleMethod(leftObj)) {
-			report_error(
-					"Left operand of 'map' operator must be method with a single integer parameter",
-					expr);
-			expr.struct = Tab.noType;
-		}
-		else {
-			expr.struct = Tab.intType;
-		}
+        if ((rightObj.getKind() != Obj.Var && rightObj.getKind() != Obj.Fld) ||
+                rightObj.getType().getKind() != Struct.Array ||
+                !rightObj.getType().getElemType().equals(Tab.intType)) {
+            report_error("Right operand of 'map' operator must be an integer array", expr);
+            expr.struct = Tab.noType;
+            return;
+        }
+
+        var arguments = new Struct(Struct.Array);
+        arguments.addImplementedInterface(Tab.intType);
+
+        // Validate the call the same way we do for regualr methods
+        var resultType = validateCall(expr.getCallableRef(), arguments, expr);
+        if (resultType.equals(Tab.noType)) {
+            expr.struct = Tab.noType;
+        }
+        else if (!resultType.equals(Tab.intType)) {
+            report_error("Left operand of 'map' operator must be method with integer return type", expr);
+            expr.struct = Tab.noType;
+        }
+        else {
+            expr.struct = Tab.intType;
+        }
 	}
 
 	@Override
@@ -1021,7 +1013,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		var firstOperandStruct = condFact.getExprNonTern().struct;
 		var secondOperandStruct = condFact.getExprNonTern1().struct;
 
-		if ((firstOperandStruct.isRefType() || secondOperandStruct.isRefType()) &&
+		if ((TabUtils.isRefType(firstOperandStruct) || TabUtils.isRefType(secondOperandStruct) ||
+				firstOperandStruct instanceof GenericParameterStruct ||
+				secondOperandStruct instanceof GenericParameterStruct) &&
 				!(condFact.getRelop() instanceof Relop_Equal) &&
 				!(condFact.getRelop() instanceof Relop_NotEqual)) {
 			report_error(

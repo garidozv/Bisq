@@ -49,6 +49,13 @@ public abstract class GenericObj extends Obj {
             if (!GenericTypeUtils.isValidTypeArgument(argument))
                 throw new IllegalArgumentException("Invalid type argument at index " + index);
 
+            if (parameter.isUsedAsArrayElementType()) {
+                if (TabUtils.equals(argument, TabUtils.setType))
+                    throw new IllegalArgumentException("Array of sets is not supported");
+                if (argument instanceof GenericParameterStruct argumentParameter)
+                    argumentParameter.markUsedAsArrayElementType();
+            }
+
             var bound = GenericTypeUtils.substitute(parameter.getConstraint(), substitutions);
             if (bound != null && !TabUtils.assignableTo(bound, argument))
                 throw new IllegalArgumentException("Type argument at index " + index + " does not satisfy its constraint");

@@ -1,12 +1,22 @@
 program GlobalGenericMethods
-class Base {
+
+interface Printable {
+    void printMe();
+}
+
+class Base extends Printable {
     int value;
     {
         int getValue() {
-            return this.value;
+            return this.value + 3;
+        }
+
+        void printMe() {
+            print(this.value);
         }
     }
 }
+
 class Derived extends Base {}
 {
     <T> T identity(T value) {
@@ -27,7 +37,11 @@ class Derived extends Base {}
         return value.getValue();
     }
 
-    void main() int number; char letter; int numbers[]; char letters[]; Derived object; {
+    <T : Printable> void printMe(T value) {
+        value.printMe(); print(eol);
+    }
+
+    void main() int number; char letter; int numbers[]; char letters[]; Derived object; Base baseValues[]; {
         number = identity::<int>(3);
         letter = identity::<char>('A');
         numbers = singleton::<int>(7);
@@ -42,5 +56,17 @@ class Derived extends Base {}
         object.value = 4;
         print(readValue::<Derived>(object));
         print(eol);
+
+        baseValues = new Derived[2];
+        baseValues[0] = new Derived();
+        baseValues[0].value = 1;
+        baseValues[1] = new Derived();
+        baseValues[1].value = 2;
+
+        for (number = 0; number < 2; number++) {
+            printMe::<Base>(baseValues[number]);
+        }
+
+        print(identity::<int> map numbers);
     }
 }

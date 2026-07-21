@@ -7,6 +7,8 @@ import rs.etf.pp1.symboltable.concepts.Struct;
  * Represents a generic parameter with an optional constraint.
  */
 public final class GenericParameterStruct extends Struct {
+    private boolean isUsedAsArrayElementType;
+
     public GenericParameterStruct() {
         this(null);
     }
@@ -29,6 +31,18 @@ public final class GenericParameterStruct extends Struct {
 
     public boolean hasConstraint() {
         return getConstraint() != null;
+    }
+
+    public void markUsedAsArrayElementType() {
+        isUsedAsArrayElementType = true;
+    }
+
+    /**
+     * Specifies if this generic parameter type is used as an array element type at any point.
+     * This then allows us to check type arguments and report error for the ones that cannot create arrays, like sets.
+     */
+    public boolean isUsedAsArrayElementType() {
+        return isUsedAsArrayElementType;
     }
 
     @Override

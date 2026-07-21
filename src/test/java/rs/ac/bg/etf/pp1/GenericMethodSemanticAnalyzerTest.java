@@ -332,6 +332,71 @@ class GenericMethodSemanticAnalyzerTest {
                 """).analyzer().passed());
     }
 
+    @Test
+    void setArgumentsCannotCloseTypesThatUseParametersAsArrayElements() throws Exception {
+        assertFalse(analyze("""
+                program LocalSetArray {
+                    <T> void allocate() T values[]; {
+                        values = new T[1];
+                    }
+
+                    void main() {
+                        allocate::<set>();
+                    }
+                }
+                """).analyzer().passed());
+
+        assertFalse(analyze("""
+                program NestedSetArray {
+                    <T> void consume() {}
+
+                    <U> void relay() {
+                        consume::<U[]>();
+                    }
+
+                    void main() {
+                        relay::<set>();
+                    }
+                }
+                """).analyzer().passed());
+    }
+
+    @Test
+    void unboundedParametersCannotBeUsedWithOrderedRelationalOperators() throws Exception {
+        assertFalse(analyze("""
+                program GenericComparison {
+                    <T> void compare(T first, T second) {
+                        if (first < second) print(1);
+                    }
+
+                    void main() {}
+                }
+                """).analyzer().passed());
+    }
+
+    @Test
+    void setArgumentsAndEqualityRemainValidWithoutArrayElementRequirements() throws Exception {
+        var result = analyze("""
+                program ValidGenericOperations {
+                    <T> T identity(T value) {
+                        return value;
+                    }
+
+                    <T> void compare(T first, T second) {
+                        if (first == second) print(1);
+                    }
+
+                    void main() set value; {
+                        value = identity::<set>(value);
+                        compare::<set>(value, value);
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        result.analyzer().createMonomorphizationPlan();
+    }
+
     private static AnalysisResult analyze(String source) throws Exception {
         TabUtils.init();
         var parser = new MJParser(new Yylex(new StringReader(source)));

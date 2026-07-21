@@ -90,6 +90,8 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.TypeArguments;
+import rs.ac.bg.etf.pp1.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.generics.MonomorphizationPlanner;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
 import rs.ac.bg.etf.pp1.ast.Statement_For;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
@@ -109,6 +111,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private Obj currentClass = null;
 	private Obj currentInterface = null;
     private final List<Obj> currentGenericParameters = new ArrayList<>();
+	private final MonomorphizationPlanner monomorphizationPlanner = new MonomorphizationPlanner();
 	private Scope programScope = null;
 
 	private int nVars = 0;
@@ -241,6 +244,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 	public int getnVars() {
 		return nVars;
+	}
+
+	public MonomorphizationPlan createMonomorphizationPlan() {
+		return monomorphizationPlanner.build();
 	}
 
 	@Override
@@ -1305,11 +1312,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 		var appliedRef = (CallableRef_Applied)callableRef;
 		try {
-			var substitution = genericMethod.validateAndCreateSubstitution(appliedRef.getTypeArgumentList().typearguments.types());
+			var typeArguments = appliedRef.getTypeArgumentList().typearguments.types();
+			var substitution = genericMethod.validateAndCreateSubstitution(typeArguments);
 			if (!isCallableWith(genericMethod, argsStruct, substitution)) {
 				reportCallParameterMismatch(method, node);
 				return Tab.noType;
 			}
+			var enclosingGenericMethod = currentMethod instanceof GenericMethodObj enclosing ? enclosing : null;
+			monomorphizationPlanner.registerUse(appliedRef, genericMethod, typeArguments, enclosingGenericMethod);
 			return GenericTypeUtils.substitute(genericMethod.getType(), substitution);
 		}
 		catch (IllegalArgumentException exception) {

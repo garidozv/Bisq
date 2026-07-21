@@ -38,6 +38,10 @@ public final class GenericTypeUtils {
         return Collections.unmodifiableSet(result);
     }
 
+    public static boolean isClosed(Struct type) {
+        return getContainedTypeParameters(type).isEmpty();
+    }
+
     /**
      * Checks if a specified type can be used as a type argument.
      */
@@ -90,7 +94,7 @@ public final class GenericTypeUtils {
         return new Struct(Struct.Array, elementType);
     }
 
-    static int typeHashCode(Struct type) {
+    public static int typeHashCode(Struct type) {
         if (type instanceof GenericParameterStruct || type instanceof GenericTypeApplicationStruct)
             return type.hashCode();
         if (type != null && type.getKind() == Struct.Array)

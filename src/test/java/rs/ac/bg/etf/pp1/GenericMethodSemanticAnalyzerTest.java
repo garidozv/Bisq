@@ -18,6 +18,7 @@ import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
@@ -141,6 +142,45 @@ class GenericMethodSemanticAnalyzerTest {
                 """);
 
         assertTrue(result.analyzer().passed());
+    }
+
+    @Test
+    void monomorphizationPlanClosesOpenUsesAndDeduplicatesSpecializations() throws Exception {
+        var result = analyze("""
+                program Plan {
+                    <T> T identity(T value) { return value; }
+
+                    <U> U forward(U value) {
+                        return identity::<U>(value);
+                    }
+
+                    <V> V unused(V value) { return value; }
+
+                    void main() int number; char letter; {
+                        number = identity::<int>(1);
+                        letter = identity::<char>('a');
+                        number = forward::<int>(2);
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var plan = result.analyzer().createMonomorphizationPlan();
+
+        var identity = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var forward = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var unused = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(2).obj);
+        var identitySpecializations = plan.getNeededSpecializations(identity);
+        assertEquals(2, identitySpecializations.size());
+        assertEquals(1, plan.getNeededSpecializations(forward).size());
+        assertTrue(plan.getNeededSpecializations(unused).isEmpty());
+
+        for (var specialization : identitySpecializations) {
+            assertFalse(specialization.getGeneratedMethod() instanceof GenericMethodObj);
+            assertTrue(GenericTypeUtils.isClosed(specialization.getGeneratedMethod().getType()));
+            assertTrue(specialization.getGeneratedMethod().getLocalSymbols().stream()
+                    .allMatch(symbol -> GenericTypeUtils.isClosed(symbol.getType())));
+        }
     }
 
     @Test

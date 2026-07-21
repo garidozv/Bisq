@@ -1,0 +1,46 @@
+program GlobalGenericMethods
+class Base {
+    int value;
+    {
+        int getValue() {
+            return this.value;
+        }
+    }
+}
+class Derived extends Base {}
+{
+    <T> T identity(T value) {
+        return value;
+    }
+
+    <T> T[] singleton(T value) T values[]; {
+        values = new T[1];
+        values[0] = value;
+        return values;
+    }
+
+    <U> U forward(U value) {
+        return identity::<U>(value);
+    }
+
+    <T : Base> int readValue(T value) {
+        return value.getValue();
+    }
+
+    void main() int number; char letter; int numbers[]; char letters[]; Derived object; {
+        number = identity::<int>(3);
+        letter = identity::<char>('A');
+        numbers = singleton::<int>(7);
+        letters = singleton::<char>('Z');
+
+        print(number);
+        print(letter);
+        print(numbers[0]);
+        print(letters[0]);
+        print(forward::<int>(9));
+        object = new Derived();
+        object.value = 4;
+        print(readValue::<Derived>(object));
+        print(eol);
+    }
+}

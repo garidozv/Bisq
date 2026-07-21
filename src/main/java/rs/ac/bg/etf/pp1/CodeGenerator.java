@@ -52,7 +52,6 @@ import rs.ac.bg.etf.pp1.ast.MethodName;
 import rs.ac.bg.etf.pp1.ast.Mulop_Div;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mod;
 import rs.ac.bg.etf.pp1.ast.Mulop_Mul;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclarations;
 import rs.ac.bg.etf.pp1.ast.Relop;
 import rs.ac.bg.etf.pp1.ast.Relop_Equal;
 import rs.ac.bg.etf.pp1.ast.Relop_Greater;
@@ -73,9 +72,12 @@ import rs.ac.bg.etf.pp1.ast.Statement_PrintExprWithNum;
 import rs.ac.bg.etf.pp1.ast.Statement_Read;
 import rs.ac.bg.etf.pp1.ast.Statement_ReturnExpr;
 import rs.ac.bg.etf.pp1.ast.Statement_ReturnVoid;
+import rs.ac.bg.etf.pp1.ast.StatementList;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.ast.WhileToken;
+import rs.ac.bg.etf.pp1.generics.GenericMethodSpecialization;
+import rs.ac.bg.etf.pp1.generics.MonomorphizationPlan;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
@@ -105,9 +107,24 @@ public class CodeGenerator extends VisitorAdaptor {
 	private Stack<Integer> doAddrStack = new Stack<>();
 	private Stack<Integer> forAddrStack = new Stack<>();
 	private int forConditionStartAddr = 0;
+	private final MonomorphizationPlan monomorphizationPlan;
+	private GenericMethodSpecialization currentSpecialization;
 	
-	public CodeGenerator() {
+	public CodeGenerator(MonomorphizationPlan monomorphizationPlan) {
+		this.monomorphizationPlan = monomorphizationPlan;
 		generatePreDefinedMethods();
+	}
+
+	public void generateMethod(StatementList body, Obj method, GenericMethodSpecialization specialization) {
+		currentSpecialization = specialization;
+		try {
+			beginMethod(method);
+			body.traverseBottomUp(this);
+			endMethod(method);
+		}
+		finally {
+			currentSpecialization = null;
+		}
 	}
 	
 	private static void generateChrMethod() {
@@ -452,19 +469,20 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_Designator factor) {
-		if (factor.getDesignator().obj.getType().getKind() != Struct.Array) {
-			Code.load(factor.getDesignator().obj);
+		var designatorObj = resolveObject(factor.getDesignator().obj);
+		if (designatorObj.getType().getKind() != Struct.Array) {
+			Code.load(designatorObj);
 		}
 	}
 		
 	@Override
 	public void visit(Factor_DesignatorCall factor) {
-		generateMethodCall(getCallableDesignator(factor.getCallableRef()));
+		generateMethodCall(factor.getCallableRef());
 	}
 	
 	@Override
 	public void visit(Factor_NewArray factor) {
-		var typeStruct = factor.struct;
+		var typeStruct = resolveType(factor.struct);
 		
 		if (typeStruct.equals(TabUtils.setType)) {
 			/*
@@ -496,7 +514,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		var objectType = factor.getTypeAtom().struct;
+		var objectType = resolveType(factor.getTypeAtom().struct);
 		
 		Code.put(Code.new_);
 		Code.put2(objectType.getNumberOfFields() * VarSize);
@@ -555,7 +573,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(ExprNonTern_Map expr) {
 		var methodDesignator = getCallableDesignator(expr.getCallableRef());
-		var methodObj = methodDesignator.obj;
+		var methodObj = resolveCallable(expr.getCallableRef());
 		// Create dummy objects for global temporary variables that are used
 		var arr = TabUtils.createDummyObj(Obj.Var, 0, true);
 		var i = TabUtils.createDummyObj(Obj.Var, 1, true);
@@ -586,7 +604,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.load(i);
 		Code.put(Code.aload);
 		// Generate method call code
-		generateMethodCall(methodDesignator);
+		generateMethodCall(expr.getCallableRef());
 		// Add the return value to local sum
 		Code.put(Code.add);
 		// Load condition values 'i' and 'len(arr) - 1'
@@ -610,23 +628,25 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Designator_Ident designator) {
-		var designatorObj = designator.obj;
-		
-		if (designator.getI1().equals("this") || designatorObj.getKind() == Obj.Fld ||
-				designatorObj.getKind() == Obj.Meth && designatorObj.getFpPos() != MethodTypes.GLOBAL.value) {
-			Code.put(Code.load_n);
-		}
-		
-		if (designatorObj.getType().getKind() == Struct.Array && 
-			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
-			Code.load(designatorObj);
-		}
+        var designatorObj = designator.obj.getKind() == Obj.Meth
+                ? designator.obj
+                : resolveObject(designator.obj);
+
+        if (designator.getI1().equals("this") || designatorObj.getKind() == Obj.Fld ||
+                designatorObj.getKind() == Obj.Meth && designatorObj.getFpPos() != MethodTypes.GLOBAL.value) {
+            Code.put(Code.load_n);
+        }
+
+        if (designatorObj.getKind() != Obj.Meth && designatorObj.getType().getKind() == Struct.Array &&
+                !(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
+            Code.load(designatorObj);
+        }
 	}
 
 	@Override
 	public void visit(Designator_MemberAccess designator) {
-		var objectDesignatorObj = designator.getDesignator().obj;
-		var memberDesignatorObj = designator.obj;
+		var objectDesignatorObj = resolveObject(designator.getDesignator().obj);
+		var memberDesignatorObj = resolveObject(designator.obj);
 		
 		if (!objectDesignatorObj.getName().equals("this")) {
 			// If field or class method, load it (object addr is already loaded)
@@ -641,23 +661,23 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {
-		var methodDesignator = getCallableDesignator(designatorStatement.getCallableRef());
-		generateMethodCall(methodDesignator);
+		var methodObj = resolveCallable(designatorStatement.getCallableRef());
+		generateMethodCall(designatorStatement.getCallableRef());
 		
 		// If method returns a value it's never used, so we have to clean the expression stack
-		if (!methodDesignator.obj.getType().equals(Tab.noType)) {
+		if (!methodObj.getType().equals(Tab.noType)) {
 			Code.put(Code.pop);
 		}
 	}
 	
 	@Override
 	public void visit(DesignatorStatement_AssignExpr designatorStatement) {
-		Code.store(designatorStatement.getDesignator().obj);
+		Code.store(resolveObject(designatorStatement.getDesignator().obj));
 	}
 	
 	@Override
 	public void visit(DesignatorStatement_Inc designatorStatement) {
-		var designatorStatementObj = designatorStatement.getDesignator().obj;
+		var designatorStatementObj = resolveObject(designatorStatement.getDesignator().obj);
 		
 		if (designatorStatementObj.getKind() == Obj.Fld) {
 			Code.put(Code.dup);
@@ -674,7 +694,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_Dec designatorStatement) {
-		var designatorStatementObj = designatorStatement.getDesignator().obj;
+		var designatorStatementObj = resolveObject(designatorStatement.getDesignator().obj);
 		
 		if (designatorStatementObj.getKind() == Obj.Fld) {
 			Code.put(Code.dup);
@@ -691,26 +711,26 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(DesignatorStatement_AssignSetop designatorStatement) {
-		Code.load(designatorStatement.getDesignator().obj);
-		Code.load(designatorStatement.getDesignator1().obj);
-		Code.load(designatorStatement.getDesignator2().obj);
+		Code.load(resolveObject(designatorStatement.getDesignator().obj));
+		Code.load(resolveObject(designatorStatement.getDesignator1().obj));
+		Code.load(resolveObject(designatorStatement.getDesignator2().obj));
 		
 		CodeUtils.putCall(unionMethodAddr);
 	}
 	
 	@Override
 	public void visit(Statement_PrintExpr statement) {
-		generatePrintStatement(statement.getExpr().struct, 0);
+		generatePrintStatement(resolveType(statement.getExpr().struct), 0);
 	}
 	
 	@Override
 	public void visit(Statement_PrintExprWithNum statement) {
-		generatePrintStatement(statement.getExpr().struct, statement.getN2());
+		generatePrintStatement(resolveType(statement.getExpr().struct), statement.getN2());
 	}
 	
 	@Override
 	public void visit(Statement_Read statement) {
-		var statementObj = statement.getDesignator().obj;
+		var statementObj = resolveObject(statement.getDesignator().obj);
 		
 		if (statementObj.getType().equals(Tab.charType)) {
 			Code.put(Code.bread);
@@ -724,23 +744,29 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(MethodName methodName) {
-		var methodNameObj = methodName.obj;
-		
-		methodNameObj.setAdr(Code.pc);
-		
-		if (methodNameObj.getName().equalsIgnoreCase("main") &&
-				methodNameObj.getFpPos() == MethodTypes.GLOBAL.value &&
-				methodNameObj.getType().equals(Tab.noType) && methodNameObj.getLevel() == 0) {
+		beginMethod(resolveObject(methodName.obj));
+	}
+
+	private void beginMethod(Obj methodObj) {
+		methodObj.setAdr(Code.pc);
+
+		if (methodObj.getName().equalsIgnoreCase("main") &&
+				methodObj.getFpPos() == MethodTypes.GLOBAL.value &&
+				methodObj.getType().equals(Tab.noType) && methodObj.getLevel() == 0) {
 			// Main method - patch the jump to main method
 			Code.fixup(mainJumpAddr + 1);
 		}
-		
-		CodeUtils.putMethodEnter(methodNameObj.getLevel(), methodNameObj.getLocalSymbols().size());
+
+		CodeUtils.putMethodEnter(methodObj.getLevel(), methodObj.getLocalSymbols().size());
 	}
 	
 	@Override
 	public void visit(MethodDecl methodDecl) {
-		if (methodDecl.obj.getType().equals(Tab.noType)) {
+		endMethod(resolveObject(methodDecl.obj));
+	}
+
+	private void endMethod(Obj methodObj) {
+		if (methodObj.getType().equals(Tab.noType)) {
 			// Generate implicit return for void methods
 			CodeUtils.putMethodExit();
 		} else {
@@ -762,16 +788,15 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(ClassDecl_Derived classDecl) {
-		classTypes.add(classDecl.obj);
+		registerClass(classDecl.obj);
 	}
-	
+
 	@Override
 	public void visit(ClassDecl_NonDerived classDecl) {
-		classTypes.add(classDecl.obj);
+		registerClass(classDecl.obj);
 	}
-	
-	@Override
-	public void visit(ProgramDeclarations programDeclarations) {
+
+	public void emitProgramInitialization() {
 		// Initialize virtual tables
 		startPc = Code.pc;
 		
@@ -1017,6 +1042,24 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		breakJumpsStack.peek().add(Code.pc - 2);
 	}
+
+    private Struct resolveType(Struct type) {
+        return currentSpecialization == null ? type : currentSpecialization.resolveType(type);
+    }
+
+    private Obj resolveObject(Obj object) {
+        return currentSpecialization == null ? object : currentSpecialization.resolveObject(object);
+    }
+
+    private Obj resolveCallable(CallableRef callableRef) {
+        if (callableRef instanceof CallableRef_Applied applied)
+            return monomorphizationPlan.getTargetSpecialization(applied, currentSpecialization).getGeneratedMethod();
+        return resolveObject(callableRef.obj);
+    }
+
+    private void registerClass(Obj classType) {
+        classTypes.add(classType);
+    }
 	
 	private void generatePrintStatement(Struct objType, int width) {
 		if (objType.equals(TabUtils.setType)) {
@@ -1035,8 +1078,9 @@ public class CodeGenerator extends VisitorAdaptor {
 		}
 	}
 	
-	private void generateMethodCall(Designator designator) {
-		var methodObj = designator.obj;
+	private void generateMethodCall(CallableRef callableRef) {
+		var designator = getCallableDesignator(callableRef);
+		var methodObj = resolveCallable(callableRef);
 		
 		if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
 			// Global method

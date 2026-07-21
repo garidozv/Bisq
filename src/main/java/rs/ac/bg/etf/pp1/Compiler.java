@@ -81,9 +81,10 @@ public class Compiler {
 				}
 				
 				// Code generation
-				CodeGenerator codeGenerator = new CodeGenerator();
+				var monomorphizationPlan = semAnalyzer.createMonomorphizationPlan();
+				CodeGenerator codeGenerator = new CodeGenerator(monomorphizationPlan);
 				codeGenerator.setDataSize(semAnalyzer.getnVars());
-				programNode.traverseBottomUp(codeGenerator);
+				new CodeGenerationController(codeGenerator, monomorphizationPlan).generate(programNode);
 				Code.dataSize = codeGenerator.getDataSize();
 				Code.mainPc = codeGenerator.getStartPc();
 				Code.write(new FileOutputStream(outputFile));

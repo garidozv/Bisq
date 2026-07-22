@@ -502,7 +502,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		var objectType = resolveType(factor.getTypeAtom().struct);
+		var objectType = resolveType(factor.getType().struct);
 		
 		Code.put(Code.new_);
 		Code.put2(objectType.getNumberOfFields() * VarSize);

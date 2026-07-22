@@ -154,17 +154,17 @@ class GenericsTypeSystemTest {
         Map<GenericParameterStruct, Struct> substitutions = new HashMap<>();
         substitutions.put(t, Tab.charType);
         substitutions.put(u, Tab.intType);
-        var substituted = GenericTypeUtils.substitute(composite, substitutions);
+        var substituted = GenericTypeUtils.substituteType(composite, substitutions);
 
         assertInstanceOf(GenericTypeApplicationStruct.class, substituted);
         var substitutedPair = (GenericTypeApplicationStruct)substituted;
         assertEquals(Tab.charType, ((GenericTypeApplicationStruct)substitutedPair.getTypeArguments().get(0)).getTypeArguments().getFirst());
         var substitutedNested = (GenericTypeApplicationStruct)substitutedPair.getTypeArguments().get(1);
         assertEquals(Tab.intType, substitutedNested.getTypeArguments().get(1));
-        assertSame(composite, GenericTypeUtils.substitute(composite, Map.of()));
+        assertSame(composite, GenericTypeUtils.substituteType(composite, Map.of()));
 
         var array = GenericTypeUtils.createArrayType(t);
-        var substitutedArray = GenericTypeUtils.substitute(array, substitutions);
+        var substitutedArray = GenericTypeUtils.substituteType(array, substitutions);
         assertEquals(Struct.Array, substitutedArray.getKind());
         assertSame(Tab.charType, substitutedArray.getElemType());
     }
@@ -207,7 +207,7 @@ class GenericsTypeSystemTest {
         Map<GenericParameterStruct, Struct> substitutions = new HashMap<>();
         substitutions.put((GenericParameterStruct)keyParameter.getType(), Tab.intType);
         substitutions.put((GenericParameterStruct)valueParameter.getType(), Tab.charType);
-        var closedBase = GenericTypeUtils.substitute(pair.getType().getElemType(), substitutions);
+        var closedBase = GenericTypeUtils.substituteType(pair.getType().getElemType(), substitutions);
 
         assertTrue(pairOfIntAndChar.isClosed());
         assertInstanceOf(GenericTypeApplicationStruct.class, closedBase);
@@ -261,7 +261,41 @@ class GenericsTypeSystemTest {
 
         assertEquals(Obj.Meth, method.getKind());
         assertSame(Obj.class, method.getClass());
-        assertSame(Tab.intType, GenericTypeUtils.substitute(method.getType(), ownerApplication.getSubstitution()));
+        assertSame(Tab.intType, GenericTypeUtils.substituteType(method.getType(), ownerApplication.getSubstitution()));
+    }
+
+    @Test
+    void objectTypesAreSubstitutedWithoutChangingOriginalSymbols() {
+        var parameter = TabUtils.createGenericParameter("T");
+        var box = TabUtils.createGenericType("Box", Struct.Class, List.of(parameter));
+        var parameterType = parameter.getType();
+
+        var method = new Obj(Obj.Meth, "replace", parameterType, 17, 2);
+        method.setFpPos(TabUtils.MethodTypes.LOCAL.value);
+        var originalLocals = new HashTableDataStructure();
+        originalLocals.insertKey(new Obj(Obj.Var, "this", GenericTypeUtils.createOpenApplication(box), 0, 1));
+        originalLocals.insertKey(new Obj(Obj.Var, "value", parameterType, 1, 1));
+        originalLocals.insertKey(new Obj(Obj.Var, "values", new Struct(Struct.Array, parameterType), 2, 1));
+        method.setLocals(originalLocals);
+
+        var application = box.applyArguments(List.of(Tab.intType));
+        var substituted = GenericTypeUtils.substituteObjectTypes(method, application.getSubstitution());
+        var substitutedLocals = substituted.getLocalSymbols().stream().collect(java.util.stream.Collectors.toMap(Obj::getName, Obj::getType));
+
+        assertNotSame(method, substituted);
+        assertEquals(method.getName(), substituted.getName());
+        assertEquals(method.getKind(), substituted.getKind());
+        assertEquals(method.getAdr(), substituted.getAdr());
+        assertEquals(method.getLevel(), substituted.getLevel());
+        assertEquals(method.getFpPos(), substituted.getFpPos());
+        assertSame(Tab.intType, substituted.getType());
+        assertEquals(box.applyArguments(List.of(Tab.intType)), substitutedLocals.get("this"));
+        assertSame(Tab.intType, substitutedLocals.get("value"));
+        assertSame(Tab.intType, substitutedLocals.get("values").getElemType());
+
+        assertSame(parameterType, method.getType());
+        assertSame(parameterType, method.getLocalSymbols().stream()
+                .filter(local -> local.getName().equals("value")).findFirst().orElseThrow().getType());
     }
 
     @Test
@@ -273,8 +307,7 @@ class GenericsTypeSystemTest {
         derived.getType().setElementType(base.applyArguments(List.of(derivedParameter.getType())));
         var interfaceParameter = TabUtils.createGenericParameter("V");
         var genericInterface = TabUtils.createGenericType("Consumer", Struct.Interface, List.of(interfaceParameter));
-        derived.getType().addImplementedInterface(
-                genericInterface.applyArguments(List.of(derivedParameter.getType())));
+        derived.getType().addImplementedInterface(genericInterface.applyArguments(List.of(derivedParameter.getType())));
 
         var derivedInt = derived.applyArguments(List.of(Tab.intType));
         assertTrue(TabUtils.assignableTo(base.applyArguments(List.of(Tab.intType)), derivedInt));
@@ -282,8 +315,7 @@ class GenericsTypeSystemTest {
         assertTrue(TabUtils.assignableTo(genericInterface.applyArguments(List.of(Tab.intType)), derivedInt));
         assertFalse(TabUtils.assignableTo(genericInterface.applyArguments(List.of(Tab.charType)), derivedInt));
         assertEquals(base.applyArguments(List.of(Tab.intType)), derivedInt.getElemType());
-        assertEquals(List.of(genericInterface.applyArguments(List.of(Tab.intType))),
-                derivedInt.getImplementedInterfaces());
+        assertEquals(List.of(genericInterface.applyArguments(List.of(Tab.intType))), derivedInt.getImplementedInterfaces());
     }
 
     @Test

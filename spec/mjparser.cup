@@ -164,7 +164,9 @@ ExtendedClassName ::= 	(ExtendedClassName_Valid) Type
 						{: parser.report_recovered_error(); :}
 						;
 				
-ClassName ::=	(ClassName) IDENT
+ClassName ::=	(ClassName_Regular) IDENT
+				|
+				(ClassName_Generic) IDENT TypeParameters
 				;
 
 InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
@@ -241,6 +243,8 @@ TypeArgumentList ::=	(TypeArgumentList_Type) Type
                         ;
 
 Type ::=	(Type_Atom) TypeAtom
+			|
+			(Type_Generic) IDENT LT TypeArgumentList GT
 			|
 			(Type_Array) Type LBRACK RBRACK
 			;
@@ -401,9 +405,9 @@ Factor ::= 	(Factor_Designator) Designator
 			|
 			(Factor_BoolConst) BOOL
 			|
-			(Factor_NewArray) NEW TypeAtom LBRACK Expr RBRACK
+			(Factor_NewArray) NEW Type LBRACK Expr RBRACK
 			|
-			(Factor_NewObject) NEW TypeAtom CallPars
+			(Factor_NewObject) NEW Type CallPars
 			|
 			(Factor_Expr) LPAREN Expr RPAREN
 			;
@@ -450,4 +454,3 @@ Mulop ::= 	(Mulop_Mul) MUL
 
 Setop ::= 	(Setop) UNION
 			;
-

@@ -6,14 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
-import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
@@ -22,7 +20,7 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
-class GenericMethodSemanticAnalyzerTest {
+class GenericMethodSemanticAnalyzerTest extends SemanticAnalyzerTestBase {
     @Test
     void genericDeclarationUsesTheSameParameterTypesThroughoutItsSignatureAndBody() throws Exception {
         var result = analyze("""
@@ -397,25 +395,18 @@ class GenericMethodSemanticAnalyzerTest {
         result.analyzer().createMonomorphizationPlan();
     }
 
-    private static AnalysisResult analyze(String source) throws Exception {
-        TabUtils.init();
-        var parser = new MJParser(new Yylex(new StringReader(source)));
-        parser.loggingEnabled = false;
-        var parsed = parser.parse();
-        var program = assertInstanceOf(Program.class, parsed.value);
-
-        var analyzer = new SemanticAnalyzer();
-        program.traverseBottomUp(analyzer);
+    private static GenericMethodAnalysisResult analyze(String source) throws Exception {
+        var analysis = analyzeProgram(source);
 
         var genericMethods = new ArrayList<GenericMethodDecl>();
-        program.traverseBottomUp(new VisitorAdaptor() {
+        analysis.program().traverseBottomUp(new VisitorAdaptor() {
             @Override
             public void visit(GenericMethodDecl method) {
                 genericMethods.add(method);
             }
         });
-        return new AnalysisResult(analyzer, List.copyOf(genericMethods));
+        return new GenericMethodAnalysisResult(analysis.analyzer(), List.copyOf(genericMethods));
     }
 
-    private record AnalysisResult(SemanticAnalyzer analyzer, List<GenericMethodDecl> genericMethods) {}
+    private record GenericMethodAnalysisResult(SemanticAnalyzer analyzer, List<GenericMethodDecl> genericMethods) {}
 }

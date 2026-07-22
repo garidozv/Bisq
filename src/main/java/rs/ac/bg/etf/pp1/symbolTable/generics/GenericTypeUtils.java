@@ -8,7 +8,9 @@ import java.util.Set;
 
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.etf.pp1.symboltable.Tab;
+import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 
 public final class GenericTypeUtils {
     private GenericTypeUtils() {}
@@ -61,31 +63,52 @@ public final class GenericTypeUtils {
         return true;
     }
 
-    /** Substitutes generic parameters recursively through arrays and generic type applications. */
-    public static Struct substitute(Struct type, Map<GenericParameterStruct, ? extends Struct> substitutions) {
+    /**
+     * Returns a type with the provided generic parameter substitutions applied recursively.
+     */
+    public static Struct substituteType(Struct type, Map<GenericParameterStruct, ? extends Struct> substitutions) {
         if (type == null) return null;
-        if (substitutions == null)
-            throw new IllegalArgumentException("Substitutions cannot be null");
+
         if (type instanceof GenericParameterStruct parameter) {
             var substitution = substitutions.get(parameter);
             return substitution != null ? substitution : parameter;
         }
         if (type.getKind() == Struct.Array) {
             var oldElement = type.getElemType();
-            var newElement = substitute(oldElement, substitutions);
+            var newElement = substituteType(oldElement, substitutions);
             return newElement == oldElement ? type : createArrayType(newElement);
         }
         if (type instanceof GenericTypeApplicationStruct application) {
             var newArguments = new ArrayList<Struct>(application.getTypeArguments().size());
             var changed = false;
             for (var oldArgument : application.getTypeArguments()) {
-                var newArgument = substitute(oldArgument, substitutions);
+                var newArgument = substituteType(oldArgument, substitutions);
                 newArguments.add(newArgument);
                 changed |= newArgument != oldArgument;
             }
             return changed ? application.getDeclaration().applyArguments(newArguments) : type;
         }
         return type;
+    }
+
+    /**
+     * Creates a new object with substitutions applied to its type and local symbol types.
+     */
+    public static Obj substituteObjectTypes(Obj object, Map<GenericParameterStruct, ? extends Struct> substitutions) {
+        if (object == null) return null;
+
+        var substituted = new Obj(object.getKind(), object.getName(), substituteType(object.getType(), substitutions),
+                object.getAdr(), object.getLevel());
+        substituted.setFpPos(object.getFpPos());
+
+        if (!object.getLocalSymbols().isEmpty()) {
+            var locals = new HashTableDataStructure();
+            for (var local : object.getLocalSymbols()) {
+                locals.insertKey(substituteObjectTypes(local, substitutions));
+            }
+            substituted.setLocals(locals);
+        }
+        return substituted;
     }
 
     public static Struct createArrayType(Struct elementType) {

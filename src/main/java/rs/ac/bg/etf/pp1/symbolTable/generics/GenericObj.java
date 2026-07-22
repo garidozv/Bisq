@@ -56,7 +56,7 @@ public abstract class GenericObj extends Obj {
                     argumentParameter.markUsedAsArrayElementType();
             }
 
-            var bound = GenericTypeUtils.substitute(parameter.getConstraint(), substitutions);
+            var bound = GenericTypeUtils.substituteType(parameter.getConstraint(), substitutions);
             if (bound != null && !TabUtils.assignableTo(bound, argument))
                 throw new IllegalArgumentException("Type argument at index " + index + " does not satisfy its constraint");
             substitutions.put(parameter, argument);

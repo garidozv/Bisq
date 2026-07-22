@@ -53,7 +53,7 @@ public final class GenericMethodSpecialization {
     }
 
     public Struct resolveType(Struct type) {
-        var resolved = GenericTypeUtils.substitute(type, substitutionMap);
+        var resolved = GenericTypeUtils.substituteType(type, substitutionMap);
         // Not really needed since we check arguments in the constructor, but is here just in case we mess something up
         if (!GenericTypeUtils.isClosed(resolved))
             throw new IllegalStateException("A generic method specialization contains an open type");

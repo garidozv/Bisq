@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
 /**
@@ -55,6 +56,14 @@ public final class GenericTypeApplicationStruct extends Struct {
     }
 
     /**
+     * Finds a declaration member and substitutes this application's arguments into its type.
+     */
+    public Obj findMember(String name) {
+        var member = declaration.getType().getMembersTable().searchKey(name);
+        return GenericTypeUtils.substituteObjectTypes(member, substitution);
+    }
+
+    /**
      * Resolves the superclass template declared by the generic type using this application's arguments.
      * <br/><br/>
      * The {@link GenericTypeApplicationStruct} is just a type Struct generated from provided types, it doesn't hold
@@ -64,7 +73,7 @@ public final class GenericTypeApplicationStruct extends Struct {
      */
     @Override
     public Struct getElemType() {
-        return GenericTypeUtils.substitute(declaration.getType().getElemType(), substitution);
+        return GenericTypeUtils.substituteType(declaration.getType().getElemType(), substitution);
     }
 
     /**
@@ -76,7 +85,7 @@ public final class GenericTypeApplicationStruct extends Struct {
     @Override
     public List<Struct> getImplementedInterfaces() {
         return declaration.getType().getImplementedInterfaces().stream()
-                .map(type -> GenericTypeUtils.substitute(type, substitution))
+                .map(type -> GenericTypeUtils.substituteType(type, substitution))
                 .toList();
     }
 

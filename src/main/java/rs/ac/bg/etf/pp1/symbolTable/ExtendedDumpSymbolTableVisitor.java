@@ -69,10 +69,11 @@ public class ExtendedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 		
 		output.append(objToVisit.getName())
 			.append(": ");
-		
-		if ((Obj.Var == objToVisit.getKind()) && "this".equalsIgnoreCase(objToVisit.getName())) {
-			output.append("");
-		}
+
+        //noinspection StatementWithEmptyBody
+        if ((Obj.Var == objToVisit.getKind()) && "this".equalsIgnoreCase(objToVisit.getName())) {
+
+        }
 		else if (objToVisit.getKind() != Obj.Type && objToVisit.getType().getKind() == Struct.Class) {
 			// Member information will only be printed out for type definitions
 			output.append("Class");
@@ -86,9 +87,10 @@ public class ExtendedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 		}	
 		
 		output.append(", ")
-			.append(objToVisit.getAdr())
-			.append(", ")
-			.append(objToVisit.getLevel() + " ");
+                .append(objToVisit.getAdr())
+                .append(", ")
+                .append(objToVisit.getLevel())
+                .append(" ");
 				
 		if (objToVisit.getKind() == Obj.Prog || objToVisit.getKind() == Obj.Meth) {
 			output.append("\n");
@@ -119,9 +121,8 @@ public class ExtendedDumpSymbolTableVisitor extends DumpSymbolTableVisitor {
 			
 			output.append(currentIndent.toString());
 			obj.accept(this);
-			
-			if (obj.getKind() == Obj.Meth) isPrevMethod = true;
-			else isPrevMethod = false;
+
+            isPrevMethod = obj.getKind() == Obj.Meth;
 		}
 		
 		output.append("]");

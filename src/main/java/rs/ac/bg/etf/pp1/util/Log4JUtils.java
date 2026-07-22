@@ -3,13 +3,12 @@ package rs.ac.bg.etf.pp1.util;
 import java.io.File;
 import java.net.URL;
 
-import org.apache.log4j.Appender;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Logger;
 
 public class Log4JUtils {
 
-	private static Log4JUtils logs = new Log4JUtils();
+	private static final Log4JUtils logs = new Log4JUtils();
 	
 	public static Log4JUtils instance() {
 		return logs;
@@ -20,13 +19,11 @@ public class Log4JUtils {
 	}
 	
 	public void prepareLogFile(Logger root) {
-		Appender appender = root.getAppender("file");
-		
-		if (!(appender instanceof FileAppender))
+        var appender = root.getAppender("file");
+		if (!(appender instanceof FileAppender fAppender))
 			return;
-		FileAppender fAppender = (FileAppender)appender;
-		
-		String logFileName = fAppender.getFile();
+
+        var logFileName = fAppender.getFile();
 		logFileName = logFileName.substring(0, logFileName.lastIndexOf('.')) + "-test.log";
 		
 		File logFile = new File(logFileName);
@@ -40,7 +37,4 @@ public class Log4JUtils {
 		fAppender.setFile(logFile.getAbsolutePath());
 		fAppender.activateOptions();
 	}
-	
-	
-	
 }

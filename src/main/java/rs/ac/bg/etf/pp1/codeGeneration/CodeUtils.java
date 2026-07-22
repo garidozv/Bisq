@@ -1,4 +1,4 @@
-package rs.ac.bg.etf.pp1;
+package rs.ac.bg.etf.pp1.codeGeneration;
 
 import rs.etf.pp1.mj.runtime.Code;
 
@@ -29,10 +29,6 @@ public final class CodeUtils {
 	public static void putConditionalJumpRelative(int op, int offset) {
 		Code.put(Code.jcc + op);
 		Code.put2(offset);
-	}
-	
-	public static void putConditionalJump(int op, int address) {
-		putConditionalJumpRelative(op, address - Code.pc);
 	}
 	
 	public static void putJumpRelative(int offset) {

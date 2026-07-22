@@ -1,10 +1,10 @@
-package rs.ac.bg.etf.pp1;
+package rs.ac.bg.etf.pp1.codeGeneration;
 
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_MethodDecl;
 import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
-import rs.ac.bg.etf.pp1.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 
 /**

@@ -90,8 +90,8 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.TypeArguments;
-import rs.ac.bg.etf.pp1.generics.MonomorphizationPlan;
-import rs.ac.bg.etf.pp1.generics.MonomorphizationPlanner;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlanner;
 import rs.ac.bg.etf.pp1.ast.Statement_DoWhileTrue;
 import rs.ac.bg.etf.pp1.ast.Statement_For;
 import rs.ac.bg.etf.pp1.ast.Statement_PrintExpr;
@@ -101,9 +101,10 @@ import rs.ac.bg.etf.pp1.ast.Statement_ReturnExpr;
 import rs.ac.bg.etf.pp1.ast.Statement_ReturnVoid;
 import rs.ac.bg.etf.pp1.ast.DoToken;
 
+@SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class SemanticAnalyzer extends VisitorAdaptor {
 
-	private final static String VritualMethodTableName = "__vtp";
+	private final static String VirtualMethodTableName = "__vtp";
 
 	private Obj programObj = null;
 	private Struct currentType = null;
@@ -121,7 +122,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private boolean hasMain = false;
 	private boolean isErrorDetected = false;
 
-	private Logger log = Logger.getLogger(getClass());
+	private final Logger log = Logger.getLogger(getClass());
 
 	private static boolean isCallableWith(Obj method, Struct argsStruct) {
 		return isCallableWith(method, argsStruct, type -> type);
@@ -187,13 +188,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 
 	private static boolean validatePrintStatementExpr(Struct exprStruct) {
-		if (!exprStruct.equals(Tab.intType) && !exprStruct.equals(Tab.charType) &&
-				!exprStruct.equals(TabUtils.boolType) &&
-				!exprStruct.equals(TabUtils.setType)) {
-			return false;
-		}
-		return true;
-	}
+        return exprStruct.equals(Tab.intType) || exprStruct.equals(Tab.charType) ||
+                exprStruct.equals(TabUtils.boolType) ||
+                exprStruct.equals(TabUtils.setType);
+    }
 
     private static void tryMarkGenericParameterArrayElement(Struct type) {
         if (type instanceof GenericParameterStruct parameter)
@@ -343,10 +341,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		if (currentClass != null && currentMethod == null) {
 			// If currentMethod is not null, we are inside of a class method definition
-			varObj = Tab.insert(Obj.Fld, name, currentType);
+			Tab.insert(Obj.Fld, name, currentType);
 		}
 		else {
-			varObj = Tab.insert(Obj.Var, name, currentType);
+			Tab.insert(Obj.Var, name, currentType);
 		}
 	}
 
@@ -364,14 +362,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error("Array of sets is not supported", varName);
 		}
 		else if (currentInterface != null) {
-			varObj = Tab.insert(Obj.Var, name, arrayTypeStruct);
+			Tab.insert(Obj.Var, name, arrayTypeStruct);
 		}
 		else if (currentClass != null && currentMethod == null) {
 			// if currentMethod is not null, we are inside of a class method definition
-			varObj = Tab.insert(Obj.Fld, name, arrayTypeStruct);
+			Tab.insert(Obj.Fld, name, arrayTypeStruct);
 		}
 		else {
-			varObj = Tab.insert(Obj.Var, name, arrayTypeStruct);
+			Tab.insert(Obj.Var, name, arrayTypeStruct);
 		}
 	}
 
@@ -519,7 +517,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			currentClass = Tab.insert(Obj.Type, name, currentType);
 			Tab.openScope();
 			// Virtual method table address field
-			Tab.insert(Obj.Fld, SemanticAnalyzer.VritualMethodTableName, Tab.intType);
+			Tab.insert(Obj.Fld, SemanticAnalyzer.VirtualMethodTableName, Tab.intType);
 		}
 	}
 

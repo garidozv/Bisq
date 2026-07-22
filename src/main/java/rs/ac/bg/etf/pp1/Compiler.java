@@ -10,6 +10,8 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
 
 import java_cup.runtime.Symbol;
+import rs.ac.bg.etf.pp1.codeGeneration.CodeGenerationController;
+import rs.ac.bg.etf.pp1.codeGeneration.CodeGenerator;
 import rs.ac.bg.etf.pp1.symbolTable.ExtendedDumpSymbolTableVisitor;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.etf.pp1.mj.runtime.Code;

@@ -1,4 +1,4 @@
-package rs.ac.bg.etf.pp1;
+package rs.ac.bg.etf.pp1.codeGeneration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,8 +76,8 @@ import rs.ac.bg.etf.pp1.ast.StatementList;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.ast.WhileToken;
-import rs.ac.bg.etf.pp1.generics.GenericMethodSpecialization;
-import rs.ac.bg.etf.pp1.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericMethodSpecialization;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
@@ -95,17 +95,17 @@ public class CodeGenerator extends VisitorAdaptor {
 	private int startPc;
 	
 	// Fields used for initialization of virtual tables
-	private List<Obj> classTypes = new ArrayList<Obj>();
-	private HashMap<Struct, Integer> virtualTableAddressMap = new HashMap<>();
+	private final List<Obj> classTypes = new ArrayList<Obj>();
+	private final HashMap<Struct, Integer> virtualTableAddressMap = new HashMap<>();
 	
 	// Fields used for conditions and conditional statements
-	private LinkedList<Integer> condTermSkipJumps = new LinkedList<>();
-	private LinkedList<Integer> thenBlockJumps = new LinkedList<>();
-	private Stack<LinkedList<Integer>> continueJumpsStack = new Stack<>();
-	private Stack<LinkedList<Integer>> breakJumpsStack = new Stack<>();
-	private Stack<Integer> elseJumpStack = new Stack<>();
-	private Stack<Integer> doAddrStack = new Stack<>();
-	private Stack<Integer> forAddrStack = new Stack<>();
+	private final LinkedList<Integer> condTermSkipJumps = new LinkedList<>();
+	private final LinkedList<Integer> thenBlockJumps = new LinkedList<>();
+	private final Stack<LinkedList<Integer>> continueJumpsStack = new Stack<>();
+	private final Stack<LinkedList<Integer>> breakJumpsStack = new Stack<>();
+	private final Stack<Integer> elseJumpStack = new Stack<>();
+	private final Stack<Integer> doAddrStack = new Stack<>();
+	private final Stack<Integer> forAddrStack = new Stack<>();
 	private int forConditionStartAddr = 0;
 	private final MonomorphizationPlan monomorphizationPlan;
 	private GenericMethodSpecialization currentSpecialization;
@@ -412,27 +412,15 @@ public class CodeGenerator extends VisitorAdaptor {
 	}
 	
 	private static int getRelop(Relop relop) {
-		if (relop instanceof Relop_Equal) {
-			return Code.eq;
-		}
-		else if (relop instanceof Relop_NotEqual) {
-			return Code.ne;
-		}
-		else if (relop instanceof Relop_Greater) {
-			return Code.gt;
-		}
-		else if (relop instanceof Relop_GreaterOrEqual) {
-			return Code.ge;
-		}
-		else if (relop instanceof Relop_Lesser) {
-			return Code.lt;
-		}
-		else if (relop instanceof Relop_LesserOrEqual) {
-			return Code.le;
-		}
-		else {
-			return -1;
-		}
+        return switch (relop) {
+            case Relop_Equal _ -> Code.eq;
+            case Relop_NotEqual _ -> Code.ne;
+            case Relop_Greater _ -> Code.gt;
+            case Relop_GreaterOrEqual _ -> Code.ge;
+            case Relop_Lesser _ -> Code.lt;
+            case Relop_LesserOrEqual _ -> Code.le;
+            case null, default -> -1;
+        };
 	}
 
     private static Designator getCallableDesignator(CallableRef callableRef) {
@@ -883,7 +871,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		thenBlockJumps.add(Code.pc - 2);
 		
-		while (condTermSkipJumps.size() > 0) {
+		while (!condTermSkipJumps.isEmpty()) {
 			Code.fixup(condTermSkipJumps.remove());
 		}
 	}
@@ -894,7 +882,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		
 		elseJumpStack.push(Code.pc - 2);
 		
-		while (thenBlockJumps.size() > 0) {
+		while (!thenBlockJumps.isEmpty()) {
 			Code.fixup(thenBlockJumps.remove());
 		}
 	}
@@ -941,7 +929,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(WhileToken whileToken) {
 		LinkedList<Integer> continueJumps = continueJumpsStack.pop();
-		while (continueJumps.size() > 0) {
+		while (!continueJumps.isEmpty()) {
 			Code.fixup(continueJumps.remove());
 		}
 	}
@@ -951,7 +939,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.putJump(doAddrStack.pop());
 		
 		LinkedList<Integer> breakJumps = breakJumpsStack.pop();
-		while (breakJumps.size() > 0) {
+		while (!breakJumps.isEmpty()) {
 			Code.fixup(breakJumps.remove());
 		}
 	}
@@ -962,7 +950,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.fixup(elseJumpStack.pop());
 		
 		LinkedList<Integer> breakJumps = breakJumpsStack.pop();
-		while (breakJumps.size() > 0) {
+		while (!breakJumps.isEmpty()) {
 			Code.fixup(breakJumps.remove());
 		}
 	}
@@ -973,7 +961,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		Code.fixup(elseJumpStack.pop());
 		
 		LinkedList<Integer> breakJumps = breakJumpsStack.pop();
-		while (breakJumps.size() > 0) {
+		while (!breakJumps.isEmpty()) {
 			Code.fixup(breakJumps.remove());
 		}
 	}
@@ -1012,7 +1000,7 @@ public class CodeGenerator extends VisitorAdaptor {
 	@Override
 	public void visit(Statement_For statement) {
 		LinkedList<Integer> continueJumps = continueJumpsStack.pop();
-		while (continueJumps.size() > 0) {
+		while (!continueJumps.isEmpty()) {
 			Code.fixup(continueJumps.remove());
 		}
 		
@@ -1024,7 +1012,7 @@ public class CodeGenerator extends VisitorAdaptor {
 		}
 		
 		LinkedList<Integer> breakJumps = breakJumpsStack.pop();
-		while (breakJumps.size() > 0) {
+		while (!breakJumps.isEmpty()) {
 			Code.fixup(breakJumps.remove());
 		}
 	}

@@ -2,7 +2,10 @@ package rs.ac.bg.etf.pp1.symbolTable;
 
 import java.util.List;
 
-import rs.ac.bg.etf.pp1.symbolTable.generics.*;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;

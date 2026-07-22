@@ -1,4 +1,4 @@
-package rs.ac.bg.etf.pp1.generics;
+package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
 import java.util.IdentityHashMap;
 import java.util.List;

@@ -8,7 +8,7 @@ import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-abstract class SemanticAnalyzerTestBase {
+abstract class CompilerTestBase {
 
     protected static AnalysisResult analyzeProgram(String source) throws Exception {
         TabUtils.init();

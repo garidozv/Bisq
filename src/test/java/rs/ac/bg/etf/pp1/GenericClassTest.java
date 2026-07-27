@@ -1,11 +1,80 @@
 package rs.ac.bg.etf.pp1;
 
+import java.util.ArrayList;
+
 import org.junit.jupiter.api.Test;
 
+import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
+import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
+import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class GenericClassSemanticAnalyzerTest extends SemanticAnalyzerTestBase {
+class GenericClassTest extends CompilerTestBase {
+
+    @Test
+    void monomorphizationPlanIncludesReachableClassSpecializations() throws Exception {
+        var analysis = analyzeProgram("""
+                program GenericClassPlan
+
+                class Box<T> {
+                    T value;
+                    {
+                        T get() { return value; }
+                    }
+                }
+
+                class Wrapper<T> {
+                    Box<T> box;
+                    {
+                        void initialize() { box = new Box<T>(); }
+                    }
+                }
+
+                class Unused<T> {}
+                {
+                    <T> Box<T> create() Box<T> box; {
+                        box = new Box<T>();
+                        return box;
+                    }
+
+                    void main() Box<int> first; Box<int> second; Box<char> letters; Wrapper<int> wrapper; {
+                        first = new Box<int>();
+                        second = new Box<int>();
+                        letters = new Box<char>();
+                        wrapper = new Wrapper<int>();
+                        first = create::<int>();
+                    }
+                }
+                """);
+
+        assertTrue(analysis.analyzer().passed());
+        var declarations = new ArrayList<GenericTypeObj>();
+        analysis.program().traverseBottomUp(new VisitorAdaptor() {
+            @Override
+            public void visit(ClassDecl_NonDerived declaration) {
+                if (declaration.obj instanceof GenericTypeObj genericType) declarations.add(genericType);
+            }
+
+            @Override
+            public void visit(ClassDecl_Derived declaration) {
+                if (declaration.obj instanceof GenericTypeObj genericType) declarations.add(genericType);
+            }
+        });
+
+        var plan = analysis.analyzer().createMonomorphizationPlan();
+        assertEquals(2, plan.getNeededSpecializations(declarations.get(0)).size());
+        assertEquals(1, plan.getNeededSpecializations(declarations.get(1)).size());
+        assertTrue(plan.getNeededSpecializations(declarations.get(2)).isEmpty());
+        for (var specialization : plan.getNeededSpecializations(declarations.get(0))) {
+            assertTrue(specialization.getGeneratedObject().getType().getMembers().stream()
+                    .allMatch(member -> GenericTypeUtils.isClosed(member.getType())));
+        }
+    }
 
     @Test
     void supportsMemberAccessThroughTheCurrentRegularClassType() throws Exception {

@@ -6,8 +6,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
+import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
@@ -16,22 +20,30 @@ import rs.etf.pp1.symboltable.concepts.Struct;
  * type arguments. This plan is then used by the code generator in the second phase.
  */
 public class MonomorphizationPlanner {
-    // Uses that appear inside other generic methods. If the enclosing method is never specialized, they won't be either.
-    private final IdentityHashMap<GenericMethodObj, List<GenericMethodUse>> nestedUses = new IdentityHashMap<>();
-    private final List<GenericMethodUse> rootUses = new ArrayList<>();
+    // Uses that appear inside other generic definitions. If the enclosing definition is never specialized, they won't be either.
+    private final IdentityHashMap<GenericObj, List<GenericUse>> nestedUses = new IdentityHashMap<>();
+    private final List<GenericUse> rootUses = new ArrayList<>();
 
-    public void registerUse(CallableRef_Applied call, GenericMethodObj declaration, List<Struct> typeArguments,
-                            GenericMethodObj enclosingDeclaration) {
-        var use = new GenericMethodUse(call, declaration, typeArguments, enclosingDeclaration);
-        if (enclosingDeclaration == null) {
-            rootUses.add(use);
-        } else {
-            nestedUses.computeIfAbsent(enclosingDeclaration, ignored -> new ArrayList<>()).add(use);
-        }
+    public void registerMethodUse(CallableRef_Applied call, GenericMethodObj declaration, List<Struct> typeArguments,
+                                  GenericObj enclosingDeclaration) {
+        registerUse(new GenericMethodUse(call, declaration, typeArguments), enclosingDeclaration);
+    }
+
+    public void registerTypeUse(Factor_NewObject creation, GenericTypeObj declaration, List<Struct> typeArguments,
+                                GenericObj enclosingDeclaration) {
+        registerUse(new GenericTypeUse(creation, declaration, typeArguments), enclosingDeclaration);
     }
 
     public MonomorphizationPlan build() {
         return new PlanBuilder().build();
+    }
+
+    private void registerUse(GenericUse use, GenericObj enclosingDeclaration) {
+        if (enclosingDeclaration == null) {
+            rootUses.add(use);
+        } else {
+            nestedUses.computeIfAbsent(enclosingDeclaration, _ -> new ArrayList<>()).add(use);
+        }
     }
 
     /*
@@ -42,22 +54,29 @@ public class MonomorphizationPlanner {
      * Only one specialization is created for each unique combination of generic declaration and type arguments.
      */
     private final class PlanBuilder {
-        private final LinkedHashMap<SpecializationKey, GenericMethodSpecialization> specializations = new LinkedHashMap<>();
-        private final IdentityHashMap<CallableRef_Applied, GenericMethodSpecialization> rootCallTargets = new IdentityHashMap<>();
+        private final LinkedHashMap<SpecializationKey, GenericSpecialization<?>> specializations = new LinkedHashMap<>();
+        private final IdentityHashMap<SyntaxNode, GenericSpecialization<?>> rootTargets = new IdentityHashMap<>();
 
         private MonomorphizationPlan build() {
             for (var use : rootUses) requestSpecialization(use, null);
 
-            var specializationsByDeclaration = new IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>>();
+            var methodSpecializationsByDeclaration = new IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>>();
+            var typeSpecializationsByDeclaration = new IdentityHashMap<GenericTypeObj, List<GenericTypeSpecialization>>();
             for (var specialization : specializations.values()) {
-                specializationsByDeclaration
-                        .computeIfAbsent(specialization.getDeclaration(), _ -> new ArrayList<>())
-                        .add(specialization);
+                if (specialization instanceof GenericMethodSpecialization methodSpecialization) {
+                    methodSpecializationsByDeclaration
+                            .computeIfAbsent(methodSpecialization.getDeclaration(), _ -> new ArrayList<>())
+                            .add(methodSpecialization);
+                } else if (specialization instanceof GenericTypeSpecialization typeSpecialization) {
+                    typeSpecializationsByDeclaration
+                            .computeIfAbsent(typeSpecialization.getDeclaration(), _ -> new ArrayList<>())
+                            .add(typeSpecialization);
+                }
             }
-            return new MonomorphizationPlan(specializationsByDeclaration, rootCallTargets);
+            return new MonomorphizationPlan(methodSpecializationsByDeclaration, typeSpecializationsByDeclaration, rootTargets);
         }
 
-        private void requestSpecialization(GenericMethodUse use, GenericMethodSpecialization enclosingSpecialization) {
+        private void requestSpecialization(GenericUse use, GenericSpecialization<?> enclosingSpecialization) {
             var closedArguments = use.typeArguments().stream()
                     .map(argument -> enclosingSpecialization == null ? argument : enclosingSpecialization.resolveType(argument))
                     .toList();
@@ -65,7 +84,7 @@ public class MonomorphizationPlanner {
             var specialization = specializations.get(key);
 
             if (specialization == null) {
-                specialization = new GenericMethodSpecialization(use.declaration(), closedArguments);
+                specialization = use.createSpecialization(closedArguments);
                 specializations.put(key, specialization);
 
                 for (var nestedUse : nestedUses.getOrDefault(use.declaration(), List.of())) {
@@ -73,13 +92,13 @@ public class MonomorphizationPlanner {
                 }
             }
 
-            if (enclosingSpecialization == null) rootCallTargets.put(use.node(), specialization);
-            else enclosingSpecialization.setCallTargetSpecialization(use.node(), specialization);
+            if (enclosingSpecialization == null) rootTargets.put(use.node(), specialization);
+            else enclosingSpecialization.setTargetSpecialization(use.node(), specialization);
         }
     }
 
-    private record SpecializationKey(GenericMethodObj declaration, List<Struct> typeArguments) {
-        private SpecializationKey(GenericMethodObj declaration, List<Struct> typeArguments) {
+    private record SpecializationKey(GenericObj declaration, List<Struct> typeArguments) {
+        private SpecializationKey(GenericObj declaration, List<Struct> typeArguments) {
             this.declaration = declaration;
             this.typeArguments = List.copyOf(typeArguments);
         }
@@ -87,7 +106,7 @@ public class MonomorphizationPlanner {
         @Override
         public boolean equals(Object other) {
             if (this == other) return true;
-            if (!(other instanceof SpecializationKey(GenericMethodObj declaration1, List<Struct> arguments)) ||
+            if (!(other instanceof SpecializationKey(GenericObj declaration1, List<Struct> arguments)) ||
                     declaration != declaration1 || typeArguments.size() != arguments.size()) {
                 return false;
             }
@@ -108,14 +127,29 @@ public class MonomorphizationPlanner {
         }
     }
 
-    private record GenericMethodUse(
-            CallableRef_Applied node,
-            GenericMethodObj declaration,
-            List<Struct> typeArguments,
-            GenericMethodObj enclosingDeclaration) {
+    private sealed interface GenericUse permits GenericMethodUse, GenericTypeUse {
+        SyntaxNode node();
 
-        public GenericMethodUse {
-            typeArguments = List.copyOf(typeArguments);
+        GenericObj declaration();
+
+        List<Struct> typeArguments();
+
+        GenericSpecialization<?> createSpecialization(List<Struct> closedArguments);
+    }
+
+    private record GenericMethodUse(CallableRef_Applied node, GenericMethodObj declaration,
+                                    List<Struct> typeArguments) implements GenericUse {
+        @Override
+        public GenericMethodSpecialization createSpecialization(List<Struct> closedArguments) {
+            return new GenericMethodSpecialization(declaration, closedArguments);
+        }
+    }
+
+    private record GenericTypeUse(Factor_NewObject node, GenericTypeObj declaration,
+                                  List<Struct> typeArguments) implements GenericUse {
+        @Override
+        public GenericTypeSpecialization createSpecialization(List<Struct> closedArguments) {
+            return new GenericTypeSpecialization(declaration, closedArguments);
         }
     }
 }

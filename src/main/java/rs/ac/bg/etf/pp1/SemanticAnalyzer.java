@@ -89,6 +89,7 @@ import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Scope;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
@@ -938,6 +939,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else {
 			factor.struct = objectType;
+			if (objectType instanceof GenericTypeApplicationStruct application) {
+				monomorphizationPlanner.registerTypeUse(factor, application.getDeclaration(), application.getTypeArguments(),
+                        getEnclosingGenericDeclaration());
+			}
 		}
 	}
 
@@ -1431,8 +1436,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				reportCallParameterMismatch(method, node);
 				return Tab.noType;
 			}
-			var enclosingGenericMethod = currentMethod instanceof GenericMethodObj enclosing ? enclosing : null;
-			monomorphizationPlanner.registerUse(appliedRef, genericMethod, typeArguments, enclosingGenericMethod);
+			monomorphizationPlanner.registerMethodUse(appliedRef, genericMethod, typeArguments, getEnclosingGenericDeclaration());
 			return GenericTypeUtils.substituteType(genericMethod.getType(), substitution);
 		}
 		catch (IllegalArgumentException exception) {
@@ -1444,6 +1448,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private void reportCallParameterMismatch(Obj method, SyntaxNode node) {
 		report_error(String.format("Passed arguments do not match the parameters of the method '%s'", method.getName()), node);
 	}
+
+    private GenericObj getEnclosingGenericDeclaration() {
+        if (currentMethod instanceof GenericMethodObj genericMethod) return genericMethod;
+        return currentClass instanceof GenericTypeObj genericType ? genericType : null;
+    }
 
     // A generic-aware symbol type lookup. Should be used instead of 'Tab.find()'
 	private Obj findTypeSymbol(String name) {

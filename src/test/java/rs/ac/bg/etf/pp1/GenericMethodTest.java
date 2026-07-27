@@ -20,7 +20,7 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
-class GenericMethodSemanticAnalyzerTest extends SemanticAnalyzerTestBase {
+class GenericMethodTest extends CompilerTestBase {
     @Test
     void genericDeclarationUsesTheSameParameterTypesThroughoutItsSignatureAndBody() throws Exception {
         var result = analyze("""
@@ -174,9 +174,9 @@ class GenericMethodSemanticAnalyzerTest extends SemanticAnalyzerTestBase {
         assertTrue(plan.getNeededSpecializations(unused).isEmpty());
 
         for (var specialization : identitySpecializations) {
-            assertFalse(specialization.getGeneratedMethod() instanceof GenericMethodObj);
-            assertTrue(GenericTypeUtils.isClosed(specialization.getGeneratedMethod().getType()));
-            assertTrue(specialization.getGeneratedMethod().getLocalSymbols().stream()
+            assertFalse(specialization.getGeneratedObject() instanceof GenericMethodObj);
+            assertTrue(GenericTypeUtils.isClosed(specialization.getGeneratedObject().getType()));
+            assertTrue(specialization.getGeneratedObject().getLocalSymbols().stream()
                     .allMatch(symbol -> GenericTypeUtils.isClosed(symbol.getType())));
         }
     }

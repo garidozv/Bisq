@@ -10,8 +10,6 @@ import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.ast.Addop_Add;
 import rs.ac.bg.etf.pp1.ast.Addop_Sub;
-import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
-import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.CallableRef;
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
 import rs.ac.bg.etf.pp1.ast.CallableRef_Plain;
@@ -76,8 +74,9 @@ import rs.ac.bg.etf.pp1.ast.StatementList;
 import rs.ac.bg.etf.pp1.ast.Term_MulopFactor;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.ast.WhileToken;
-import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericMethodSpecialization;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
@@ -107,15 +106,20 @@ public class CodeGenerator extends VisitorAdaptor {
 	private final Stack<Integer> doAddrStack = new Stack<>();
 	private final Stack<Integer> forAddrStack = new Stack<>();
 	private int forConditionStartAddr = 0;
+
 	private final MonomorphizationPlan monomorphizationPlan;
-	private GenericMethodSpecialization currentSpecialization;
+	private GenericSpecialization<?> currentSpecialization;
 	
 	public CodeGenerator(MonomorphizationPlan monomorphizationPlan) {
 		this.monomorphizationPlan = monomorphizationPlan;
 		generatePreDefinedMethods();
 	}
 
-	public void generateMethod(StatementList body, Obj method, GenericMethodSpecialization specialization) {
+    /**
+     * Generates the code for the given method body and method object inside the specified specialization.
+     * @param specialization The specialization context used to resolve generic types and symbols while generating the method.
+     */
+	public void generateMethod(StatementList body, Obj method, GenericSpecialization<?> specialization) {
 		currentSpecialization = specialization;
 		try {
 			beginMethod(method);
@@ -427,6 +431,24 @@ public class CodeGenerator extends VisitorAdaptor {
         if (callableRef instanceof CallableRef_Plain plain) return plain.getDesignator();
         return ((CallableRef_Applied)callableRef).getDesignator();
     }
+
+    private static int calculateVirtualTableSize(Obj classObj) {
+        var methodEntriesSize = classObj.getType().getMembers().stream()
+                .filter(obj -> obj.getKind() == Obj.Meth)
+                .mapToInt(method -> method.getName().length() + 2)
+                .sum();
+        return methodEntriesSize == 0 ? 0 : methodEntriesSize + 1;
+    }
+
+    /**
+     * Registers a concrete class and reserves its virtual table range in static memory.
+     * This must be called for every concrete class before any class definition is generated.
+     */
+    void registerClass(Obj classType) {
+        classTypes.add(classType);
+        virtualTableAddressMap.put(classType.getType(), dataSize);
+        dataSize += calculateVirtualTableSize(classType);
+    }
 	
 	public int getStartPc() {
 		return startPc;
@@ -502,7 +524,9 @@ public class CodeGenerator extends VisitorAdaptor {
 	
 	@Override
 	public void visit(Factor_NewObject factor) {
-		var objectType = resolveType(factor.getType().struct);
+		var objectType = factor.struct instanceof GenericTypeApplicationStruct
+				? monomorphizationPlan.getTargetSpecialization(factor, currentSpecialization).getGeneratedObject().getType()
+				: resolveType(factor.getType().struct);
 		
 		Code.put(Code.new_);
 		Code.put2(objectType.getNumberOfFields() * VarSize);
@@ -641,7 +665,7 @@ public class CodeGenerator extends VisitorAdaptor {
 			Code.load(objectDesignatorObj);
 		}
 
-		if (memberDesignatorObj.getType().getKind() == Struct.Array &&
+		if (memberDesignatorObj.getKind() != Obj.Meth && memberDesignatorObj.getType().getKind() == Struct.Array &&
 			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
 			Code.load(memberDesignatorObj);
 		}
@@ -774,22 +798,12 @@ public class CodeGenerator extends VisitorAdaptor {
 		CodeUtils.putMethodExit();
 	}
 	
-	@Override
-	public void visit(ClassDecl_Derived classDecl) {
-		registerClass(classDecl.obj);
-	}
-
-	@Override
-	public void visit(ClassDecl_NonDerived classDecl) {
-		registerClass(classDecl.obj);
-	}
-
 	public void emitProgramInitialization() {
 		// Initialize virtual tables
 		startPc = Code.pc;
 		
 		for (var classType : classTypes) {
-			generateVirtualTable(classType);
+			populateVirtualTable(classType);
 		}
 		
 		/*
@@ -1041,12 +1055,8 @@ public class CodeGenerator extends VisitorAdaptor {
 
     private Obj resolveCallable(CallableRef callableRef) {
         if (callableRef instanceof CallableRef_Applied applied)
-            return monomorphizationPlan.getTargetSpecialization(applied, currentSpecialization).getGeneratedMethod();
+            return monomorphizationPlan.getTargetSpecialization(applied, currentSpecialization).getGeneratedObject();
         return resolveObject(callableRef.obj);
-    }
-
-    private void registerClass(Obj classType) {
-        classTypes.add(classType);
     }
 	
 	private void generatePrintStatement(Struct objType, int width) {
@@ -1092,32 +1102,30 @@ public class CodeGenerator extends VisitorAdaptor {
 		}
 	}
 	
-	private void addToStaticMemory(int value) {
+	private void putInStaticMemory(int value, int address) {
 		Code.loadConst(value);
 		Code.put(Code.putstatic);
-		Code.put2(dataSize++);
+		Code.put2(address);
 	}
 	
-	private void generateVirtualTable(Obj classObj) {
+	private void populateVirtualTable(Obj classObj) {
 		var methodObjArray = classObj.getType().getMembers().stream()
 				.filter(obj -> obj.getKind() == Obj.Meth)
 				.toArray(Obj[]::new);
-		
 		if (methodObjArray.length == 0) return;
-		
-		// Set start address of the virtual table
-		virtualTableAddressMap.put(classObj.getType(), dataSize);
+
+		var address = virtualTableAddressMap.get(classObj.getType());
 		
 		for (var methodObj : methodObjArray) {
 			for (char c : methodObj.getName().toCharArray()) {
-				addToStaticMemory(c);
+				putInStaticMemory(c, address++);
 			}
-			addToStaticMemory(-1);
-			addToStaticMemory(methodObj .getAdr());
+			putInStaticMemory(-1, address++);
+			putInStaticMemory(methodObj.getAdr(), address++);
 		}
 		
 		// End of virtual table marker
-		addToStaticMemory(-2);
+		putInStaticMemory(-2, address);
 	}
 	
 	private void HandleForLoopPostStatement() {

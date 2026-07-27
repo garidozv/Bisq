@@ -4,27 +4,45 @@ import java.util.IdentityHashMap;
 import java.util.List;
 
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
+import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 
 /**
- * A plan whose purpose is to tell the code generator which specializations need to be generated for each generic object.
+ * A plan whose purpose is to tell the code generator which specializations need to be generated for each generic declaration.
  */
 public final class MonomorphizationPlan {
-    private final IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> specializationsByDeclaration;
-    private final IdentityHashMap<CallableRef_Applied, GenericMethodSpecialization> rootCallTargets;
+    private final IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> methodSpecializationsByDeclaration;
+    private final IdentityHashMap<GenericTypeObj, List<GenericTypeSpecialization>> typeSpecializationsByDeclaration;
+    private final IdentityHashMap<SyntaxNode, GenericSpecialization<?>> rootTargets;
 
     public MonomorphizationPlan(
-            IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> specializationsByDeclaration,
-            IdentityHashMap<CallableRef_Applied, GenericMethodSpecialization> rootCallTargets) {
-        this.specializationsByDeclaration = specializationsByDeclaration;
-        this.rootCallTargets = new IdentityHashMap<>(rootCallTargets);
+            IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> methodSpecializationsByDeclaration,
+            IdentityHashMap<GenericTypeObj, List<GenericTypeSpecialization>> typeSpecializationsByDeclaration,
+            IdentityHashMap<SyntaxNode, GenericSpecialization<?>> rootTargets) {
+        this.methodSpecializationsByDeclaration = methodSpecializationsByDeclaration;
+        this.typeSpecializationsByDeclaration = typeSpecializationsByDeclaration;
+        this.rootTargets = rootTargets;
     }
 
     public List<GenericMethodSpecialization> getNeededSpecializations(GenericMethodObj declaration) {
-        return specializationsByDeclaration.getOrDefault(declaration, List.of());
+        return methodSpecializationsByDeclaration.getOrDefault(declaration, List.of());
     }
 
-    public GenericMethodSpecialization getTargetSpecialization(CallableRef_Applied call, GenericMethodSpecialization caller) {
-        return caller == null ? rootCallTargets.get(call) : caller.getCallTargetSpecialization(call);
+    public List<GenericTypeSpecialization> getNeededSpecializations(GenericTypeObj declaration) {
+        return typeSpecializationsByDeclaration.getOrDefault(declaration, List.of());
+    }
+
+    public GenericMethodSpecialization getTargetSpecialization(CallableRef_Applied call, GenericSpecialization<?> caller) {
+        return (GenericMethodSpecialization)getTargetSpecialization((SyntaxNode)call, caller);
+    }
+
+    public GenericTypeSpecialization getTargetSpecialization(Factor_NewObject creation, GenericSpecialization<?> caller) {
+        return (GenericTypeSpecialization)getTargetSpecialization((SyntaxNode)creation, caller);
+    }
+
+    private GenericSpecialization<?> getTargetSpecialization(SyntaxNode node, GenericSpecialization<?> caller) {
+        return caller == null ? rootTargets.get(node) : caller.getTargetSpecialization(node);
     }
 }

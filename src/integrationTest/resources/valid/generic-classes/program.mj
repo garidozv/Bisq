@@ -1,0 +1,63 @@
+program GenericClasses
+
+class Box<T> {
+    T value;
+    {
+        void set(T item) {
+            this.value = item;
+        }
+
+        T get() {
+            return this.value;
+        }
+
+        T[] singleton(T item) T values[]; {
+            values = new T[1];
+            values[0] = item;
+            return values;
+        }
+    }
+}
+
+class Wrapper<T> {
+    Box<T> box;
+    {
+        void initialize(T value) {
+            box = new Box<T>();
+            box.set(value);
+        }
+
+        T fetch() {
+            return box.get();
+        }
+    }
+}
+
+class Empty<T> {}
+{
+    <T> Box<T> makeBox(T value) Box<T> box; {
+        box = new Box<T>();
+        box.set(value);
+        return box;
+    }
+
+    void main() Box<int> numbers; Box<char> letters; Wrapper<int> wrapper; Empty<int> empty; int values[]; {
+        numbers = new Box<int>();
+        numbers.set(3);
+        letters = new Box<char>();
+        letters.set('A');
+        values = numbers.singleton(7);
+
+        wrapper = new Wrapper<int>();
+        wrapper.initialize(9);
+        empty = new Empty<int>();
+
+        print(numbers.get());
+        print(letters.get());
+        print(values[0]);
+        print(wrapper.fetch());
+        numbers = makeBox::<int>(11);
+        print(numbers.get());
+        print(eol);
+    }
+}

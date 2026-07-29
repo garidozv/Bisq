@@ -4,7 +4,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
-import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
+import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
@@ -43,7 +43,7 @@ public final class MonomorphizationPlan {
         return (GenericTypeSpecialization)getTargetSpecialization((SyntaxNode)creation, caller);
     }
 
-    public GenericTypeSpecialization getTargetSpecialization(ExtendedClassName_Valid inheritance, GenericSpecialization<?> derivedSpecialization) {
+    public GenericTypeSpecialization getTargetSpecialization(ExtendedTypeName_Valid inheritance, GenericSpecialization<?> derivedSpecialization) {
         return (GenericTypeSpecialization)getTargetSpecialization((SyntaxNode)inheritance, derivedSpecialization);
     }
 

@@ -1,0 +1,92 @@
+program GenericInterfaces
+
+class LeftBase {
+    int value;
+}
+
+class RightBase {
+    int value;
+}
+
+class Left extends LeftBase {}
+class Right extends RightBase {}
+
+interface Pair<T : LeftBase, U : RightBase> {
+    T first(T value);
+
+    T forward(T value) {
+        return this.first(value);
+    }
+
+    U second(U value) {
+        return value;
+    }
+
+    int kind() {
+        return 1;
+    }
+}
+
+class Implementation<T : LeftBase, U : RightBase> extends Pair<T, U> {
+    {
+        T first(T value) {
+            return value;
+        }
+
+        int kind() {
+            return 2;
+        }
+    }
+}
+
+class Consumer<V : Pair<Left, Right>> {
+    {
+        int kind(V value) {
+            return value.kind();
+        }
+    }
+}
+
+class FixedImplementation extends Pair<Left, Right> {
+    {
+        Left first(Left value) {
+            return value;
+        }
+    }
+}
+
+interface Ordinary {
+    int ordinaryKind() {
+        return 4;
+    }
+}
+
+class GenericFromOrdinary<T> extends Ordinary {}
+{
+    void main() Left left; Right right; Pair<Left, Right> pair;
+                Implementation<Left, Right> implementation; FixedImplementation fixed;
+                GenericFromOrdinary<int> genericOrdinary; Consumer<Implementation<Left, Right>> consumer; {
+        left = new Left();
+        left.value = 7;
+        right = new Right();
+        right.value = 8;
+
+        implementation = new Implementation<Left, Right>();
+        pair = implementation;
+        left = pair.forward(left);
+        right = pair.second(right);
+        print(left.value);
+        print(right.value);
+        print(pair.kind());
+
+        fixed = new FixedImplementation();
+        print(fixed.kind());
+
+        genericOrdinary = new GenericFromOrdinary<int>();
+        print(genericOrdinary.ordinaryKind());
+
+        consumer = new Consumer<Implementation<Left, Right>>();
+        print(consumer.kind(implementation));
+        print(eol);
+    }
+}

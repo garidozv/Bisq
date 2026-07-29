@@ -68,11 +68,11 @@ terminal Boolean BOOL;
 nonterminal 
 	Setop, Relop, Mulop, Addop, Assignop, Label, DoToken, CondTerm,
 	DesignatorStatement, Statement, FormPars, Condition, ElseToken,
-	StatementList, VarDeclList, MethodSignature, InterfaceDecl,
+	StatementList, VarDeclList, MethodSignature,
 	InterfaceBody, ClassBody, MethodDeclList, VarDecl, ProgramDeclarations,
 	VarDeclNoType, VarName, ConstDecl, ConstDeclNoType, ConstAssign, 
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
-	FormParVar, ClassName, ExtendedClassName, InterfaceName,
+	FormParVar, ClassName, ExtendedTypeName, InterfaceName,
 	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement,
 	GenericMethodSignature, TypeParameters, TypeParameterList;
 
@@ -80,7 +80,7 @@ nonterminal rs.ac.bg.etf.pp1.symbolTable.generics.TypeArguments
 	TypeArgumentList;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Obj
-	Designator, MethodName, ClassDecl, MethodDecl, GenericMethodDecl, CallableRef, TypeParameter;
+	Designator, MethodName, ClassDecl, InterfaceDecl, MethodDecl, GenericMethodDecl, CallableRef, TypeParameter;
 	
 nonterminal rs.etf.pp1.symboltable.concepts.Struct
 	ExprNonTern, ExprTern, Expr, ExprList, Factor, Term, CallPars, ActPars, CondFact, Type, TypeAtom;
@@ -153,14 +153,14 @@ ClassBody ::=	(ClassBody_Fields) VarDeclList
 				(ClassBody_FieldsAndMethods) VarDeclList LBRACE MethodDeclList RBRACE
 				;
 
-ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedClassName LBRACE ClassBody RBRACE
+ClassDecl ::= 	(ClassDecl_Derived) CLASS ClassName EXTENDS ExtendedTypeName LBRACE ClassBody RBRACE
 				|
 				(ClassDecl_NonDerived) CLASS ClassName LBRACE ClassBody RBRACE
 				;
 				
-ExtendedClassName ::= 	(ExtendedClassName_Valid) Type
+ExtendedTypeName ::= 	(ExtendedTypeName_Valid) Type
 						|
-						(ExtendedClassName_Error) error
+						(ExtendedTypeName_Error) error
 						{: parser.report_recovered_error(); :}
 						;
 				
@@ -179,7 +179,9 @@ InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 InterfaceDecl ::=	(InterfaceDecl) INTERFACE InterfaceName LBRACE InterfaceBody RBRACE
 					;
 					
-InterfaceName ::=	(InterfaceName) IDENT
+InterfaceName ::=	(InterfaceName_Regular) IDENT
+					|
+					(InterfaceName_Generic) IDENT TypeParameters
 					;
 
 MethodSignature ::=	(MethodSignature_NoPars) MethodReturnType MethodName LPAREN RPAREN

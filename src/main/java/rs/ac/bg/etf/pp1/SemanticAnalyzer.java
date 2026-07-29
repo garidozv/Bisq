@@ -42,7 +42,7 @@ import rs.ac.bg.etf.pp1.ast.ExprNonTern_Map;
 import rs.ac.bg.etf.pp1.ast.ExprTern;
 import rs.ac.bg.etf.pp1.ast.Expr_NonTern;
 import rs.ac.bg.etf.pp1.ast.Expr_Tern;
-import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
+import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
 import rs.ac.bg.etf.pp1.ast.Factor_BoolConst;
 import rs.ac.bg.etf.pp1.ast.Factor_CharConst;
 import rs.ac.bg.etf.pp1.ast.Factor_Designator;
@@ -57,7 +57,8 @@ import rs.ac.bg.etf.pp1.ast.FormParVar_Array;
 import rs.ac.bg.etf.pp1.ast.FormParVar_NonArray;
 import rs.ac.bg.etf.pp1.ast.InterfaceBody_MethodSignature;
 import rs.ac.bg.etf.pp1.ast.InterfaceDecl;
-import rs.ac.bg.etf.pp1.ast.InterfaceName;
+import rs.ac.bg.etf.pp1.ast.InterfaceName_Generic;
+import rs.ac.bg.etf.pp1.ast.InterfaceName_Regular;
 import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodName;
@@ -117,8 +118,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	private Obj currentClass = null;
 	private Obj currentInterface = null;
     private final List<Obj> currentGenericParameters = new ArrayList<>();
-    // Keeps track of applications of the generic class currently being declared.
-    // They must be revalidated at the end because requirements for its type parameters may be discovered later in the class body.
+    // Keeps track of applications of the generic class or interface currently being declared.
+    // They must be revalidated at the end because requirements for its type parameters may be discovered later in the type body.
     // Currently, this happens when a type parameter is used as an array element, so we mustn't allow application of the set.
 	private final List<Type_Generic> genericTypeApplicationsToRevalidate = new ArrayList<>();
 	private final MonomorphizationPlanner monomorphizationPlanner = new MonomorphizationPlanner();
@@ -310,7 +311,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			var arguments = type.getTypeArgumentList().typearguments.types();
 			try {
 				currentType = genericType.applyArguments(arguments);
-				if (genericType == currentClass) {
+				if (genericType == currentClass || genericType == currentInterface) {
 					genericTypeApplicationsToRevalidate.add(type);
 				}
 			}
@@ -439,12 +440,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error(String.format("Multiple definitions of the name '%s'", name), methodName);
 		}
 		else {
-			if (currentClass != null || currentGenericParameters.isEmpty()) {
-				currentMethod = Tab.insert(Obj.Meth, name, currentType);
-			}
-			else {
-				currentMethod = TabUtils.insert(TabUtils.createGenericMethod(name, currentType, List.copyOf(currentGenericParameters)));
-			}
+            // Currently, only global methods can declare their own generic parameters
+            var isGenericMethod = currentClass == null && currentInterface == null && !currentGenericParameters.isEmpty();
+            if (isGenericMethod) {
+                currentMethod = TabUtils.insert(TabUtils.createGenericMethod(name, currentType, List.copyOf(currentGenericParameters)));
+            }
+            else {
+                currentMethod = Tab.insert(Obj.Meth, name, currentType);
+            }
 			Tab.openScope();
 
 			if (currentClass != null || currentInterface != null) {
@@ -474,7 +477,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(GenericMethodDecl methodDecl) {
 		methodDecl.obj = completeCurrentMethod(methodDecl, false);
-		if (currentClass == null) currentGenericParameters.clear();
+		if (currentClass == null && currentInterface == null) currentGenericParameters.clear();
 	}
 
 	private Obj completeCurrentMethod(SyntaxNode methodDecl, boolean canBeMain) {
@@ -595,11 +598,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 
 	@Override
-	public void visit(ExtendedClassName_Valid extendedClassName) {
+	public void visit(ExtendedTypeName_Valid extendedTypeName) {
 		if (currentType == null || currentClass == null) return;
 		if (currentType == currentClass.getType() ||
 				currentType instanceof GenericTypeApplicationStruct application && application.getDeclaration() == currentClass) {
-			report_error("A class cannot extend itself", extendedClassName);
+			report_error("A class cannot extend itself", extendedTypeName);
 			return;
 		}
 
@@ -608,7 +611,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			if (currentType instanceof GenericTypeApplicationStruct application) {
                 // For a non-generic class, there is no enclosing generic declaration, so this becomes a root use.
                 // This is intentional because ordinary classes are always generated, so their generic bases must also be specialized.
-				monomorphizationPlanner.registerTypeUse(extendedClassName, application.getDeclaration(),
+				monomorphizationPlanner.registerTypeUse(extendedTypeName, application.getDeclaration(),
                         application.getTypeArguments(), getEnclosingGenericDeclaration());
 			}
 
@@ -628,16 +631,20 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		}
 		else if (currentType.getKind() == Struct.Interface) {
 			currentClass.getType().addImplementedInterface(currentType);
+			if (currentType instanceof GenericTypeApplicationStruct application) {
+				monomorphizationPlanner.registerTypeUse(extendedTypeName, application.getDeclaration(),
+						application.getTypeArguments(), getEnclosingGenericDeclaration());
+			}
 		}
 		else {
-			report_error("Only class and interface types can be extended", extendedClassName);
+			report_error("Only class and interface types can be extended", extendedTypeName);
 		}
 	}
 
 	@Override
 	public void visit(ClassDecl_Derived classDecl) {
 		if (currentClass == null) {
-			clearGenericClassState();
+			clearGenericTypeState();
 			return;
 		}
 
@@ -687,7 +694,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(ClassDecl_NonDerived classDecl) {
 		if (currentClass == null) {
-			clearGenericClassState();
+			clearGenericTypeState();
 			return;
 		}
 
@@ -706,7 +713,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	 */
 
 	@Override
-	public void visit(InterfaceName interfaceName) {
+	public void visit(InterfaceName_Regular interfaceName) {
 		var name = interfaceName.getI1();
 		var interfaceObj = getSymbolObj(name);
 
@@ -721,12 +728,37 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 
 	@Override
-	public void visit(InterfaceDecl interfaceDecl) {
-		if (currentInterface == null) return;
+	public void visit(InterfaceName_Generic interfaceName) {
+		var name = interfaceName.getI1();
+		var interfaceObj = getSymbolObj(name);
 
-		currentInterface.getType().setMembers(Tab.currentScope.getLocals());
-		Tab.closeScope();
-		currentInterface = null;
+		if (interfaceObj != null) {
+			report_error(String.format("Multiple definitions of the name '%s'", name), interfaceName);
+			return;
+		}
+		if (currentGenericParameters.stream().anyMatch(parameter -> parameter.getName().equals(name))) {
+			report_error("An interface and its generic parameter cannot have the same name", interfaceName);
+		}
+
+		try {
+			var genericInterface = TabUtils.createGenericType(name, Struct.Interface, List.copyOf(currentGenericParameters));
+			currentInterface = TabUtils.insert(genericInterface);
+			currentType = currentInterface.getType();
+			Tab.openScope();
+		}
+		catch (IllegalArgumentException exception) {
+			report_error(exception.getMessage(), interfaceName);
+			currentType = Tab.noType;
+		}
+	}
+
+	@Override
+	public void visit(InterfaceDecl interfaceDecl) {
+		if (currentInterface == null) {
+			clearGenericTypeState();
+			return;
+		}
+		interfaceDecl.obj = completeInterfaceDeclaration();
 	}
 
 	@Override
@@ -747,11 +779,12 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(Designator_Ident designator) {
 		var currentObj = Tab.find(designator.getI1());
+		var currentOwner = currentClass != null ? currentClass : currentInterface;
 
-		if (designator.getI1().equals("this") && currentClass != null) {
-			var thisType = currentClass instanceof GenericTypeObj genericClass
-					? GenericTypeUtils.createOpenApplication(genericClass)
-					: currentClass.getType();
+		if (designator.getI1().equals("this") && currentOwner != null) {
+			var thisType = currentOwner instanceof GenericTypeObj genericType
+					? GenericTypeUtils.createOpenApplication(genericType)
+					: currentOwner.getType();
 			designator.obj = new Obj(Obj.Var, "this", thisType);
 		}
 		else if (currentObj == Tab.noObj) {
@@ -799,13 +832,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 					? application
 					: null;
 
-			var memberBelongsToCurrentClass = currentClass != null &&
-					(lookupType == currentClass.getType() || receiverTypeApplication != null && receiverTypeApplication.getDeclaration() == currentClass);
-			if (currentObj.getName().equals("this") || memberBelongsToCurrentClass) {
+			var currentOwner = currentClass != null ? currentClass : currentInterface;
+			var memberBelongsToCurrentType = currentOwner != null &&
+					(lookupType == currentOwner.getType() || receiverTypeApplication != null && receiverTypeApplication.getDeclaration() == currentOwner);
+			if (currentObj.getName().equals("this") || memberBelongsToCurrentType) {
 				/*
-				 * If accessing a member of the class currently being declared, we cannot use its type
+				 * If accessing a member of the class or interface currently being declared, we cannot use its type
 				 * since it is not completed yet (scope is still open, and members have not been set).
-				 * So we need to access the class scope, which is one scope up, and we are currently in the method scope.
+				 * So we need to access the owner scope, which is one scope up, as we are currently in the method scope.
 				 */
 				memberObj = Tab.currentScope.getOuter().findSymbol(objectName);
 			}
@@ -816,10 +850,10 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				memberObj = lookupType.getMembersTable().searchKey(objectName);
 			}
 
-            // Members found in the open class scope still use declaration types, so substitute them with this receiver's application.
+            // Members found in the open type scope still use declaration types, so substitute them with this receiver's application.
             // For example, if we are inside class Node<T>, and it has fields A of type T and B of type Node<T[]>. If we try accessing
             // B and getting its A field, it will no longer be just T, but T[]. This is why we have to perform substitution.
-			if (memberObj != null && receiverTypeApplication != null && memberBelongsToCurrentClass) {
+			if (memberObj != null && receiverTypeApplication != null && memberBelongsToCurrentType) {
 				memberObj = GenericTypeUtils.substituteObjectTypes(memberObj, receiverTypeApplication.getSubstitution());
 			}
 
@@ -1337,24 +1371,37 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         Tab.closeScope();
         currentClass = null;
 
-        // If generic class, perform revalidation of type applications
-        if (completedClass instanceof GenericTypeObj) {
-            for (var type : genericTypeApplicationsToRevalidate) {
-                try {
-                    var application = (GenericTypeApplicationStruct)type.struct;
-                    application.getDeclaration().validateAndCreateSubstitution(application.getTypeArguments());
-                }
-                catch (IllegalArgumentException exception) {
-                    report_error(exception.getMessage(), type);
-                }
-            }
-        }
-
-        clearGenericClassState();
+        revalidateGenericTypeApplications(completedClass);
+        clearGenericTypeState();
         return completedClass;
     }
 
-    private void clearGenericClassState() {
+    private Obj completeInterfaceDeclaration() {
+        var completedInterface = currentInterface;
+        currentInterface.getType().setMembers(Tab.currentScope.getLocals());
+        Tab.closeScope();
+        currentInterface = null;
+
+        revalidateGenericTypeApplications(completedInterface);
+        clearGenericTypeState();
+        return completedInterface;
+    }
+
+    private void revalidateGenericTypeApplications(Obj completedType) {
+        if (!(completedType instanceof GenericTypeObj)) return;
+
+		for (var type : genericTypeApplicationsToRevalidate) {
+			try {
+				var application = (GenericTypeApplicationStruct)type.struct;
+				application.getDeclaration().validateAndCreateSubstitution(application.getTypeArguments());
+			}
+			catch (IllegalArgumentException exception) {
+				report_error(exception.getMessage(), type);
+			}
+		}
+    }
+
+    private void clearGenericTypeState() {
         currentGenericParameters.clear();
         genericTypeApplicationsToRevalidate.clear();
     }
@@ -1454,7 +1501,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     private GenericObj getEnclosingGenericDeclaration() {
         if (currentMethod instanceof GenericMethodObj genericMethod) return genericMethod;
-        return currentClass instanceof GenericTypeObj genericType ? genericType : null;
+		if (currentClass instanceof GenericTypeObj genericType) return genericType;
+		return currentInterface instanceof GenericTypeObj genericType ? genericType : null;
     }
 
     // A generic-aware symbol type lookup. Should be used instead of 'Tab.find()'

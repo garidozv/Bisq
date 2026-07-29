@@ -1,10 +1,11 @@
 package rs.ac.bg.etf.pp1.codeGeneration;
 
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 import rs.ac.bg.etf.pp1.ast.ClassDecl;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
-import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
+import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_MethodDecl;
@@ -14,9 +15,11 @@ import rs.ac.bg.etf.pp1.ast.ProgramDeclList_ClassDecl;
 import rs.ac.bg.etf.pp1.ast.ProgramDeclList_ConstDecl;
 import rs.ac.bg.etf.pp1.ast.ProgramDeclList_InterfaceDecl;
 import rs.ac.bg.etf.pp1.ast.ProgramDeclList_VarDecl;
+import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
@@ -64,7 +67,18 @@ public final class CodeGenerationController extends VisitorAdaptor {
     @Override
     public void visit(ProgramDeclList_InterfaceDecl declarations) {
         declarations.getProgramDeclList().accept(this);
-        declarations.getInterfaceDecl().traverseBottomUp(generator);
+
+        var interfaceDeclaration = declarations.getInterfaceDecl();
+        if (!(interfaceDeclaration.obj instanceof GenericTypeObj genericType)) {
+            interfaceDeclaration.traverseBottomUp(generator);
+            return;
+        }
+
+        for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
+            for (var method : getDeclaredMethods(interfaceDeclaration)) {
+                generator.generateMethod(method.getStatementList(), specialization.resolveObject(method.obj), specialization);
+            }
+        }
     }
 
     @Override
@@ -103,7 +117,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
         }
     }
 
-    private static ArrayList<MethodDecl> getDeclaredMethods(ClassDecl declaration) {
+    private static ArrayList<MethodDecl> getDeclaredMethods(SyntaxNode declaration) {
         var methods = new ArrayList<MethodDecl>();
         declaration.traverseTopDown(new VisitorAdaptor() {
             @Override
@@ -115,7 +129,8 @@ public final class CodeGenerationController extends VisitorAdaptor {
     }
 
     /**
-     * Registers all regular classes and specializations of generic classes before their definitions are generated.
+     * Configures concrete inheritance relationships and registers all regular classes and generic class specializations
+     * with the generator before their definitions are generated.
      * This allows us to know the addresses of their virtual tables in advance so that we can use them directly in definitions
      * without having to patch them at the end. Once all definitions have been generated and their method addresses are known,
      * the virtual tables are populated with those addresses.
@@ -127,12 +142,14 @@ public final class CodeGenerationController extends VisitorAdaptor {
             var classDeclaration = classDeclarations.getClassDecl();
             if (classDeclaration.obj instanceof GenericTypeObj genericType) {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
-                    configureInheritance(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
+                    configureClassInheritance(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
+                    configureImplementedInterface(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     generator.registerClass(specialization.getGeneratedObject());
                 }
             }
             else {
-                configureInheritance(classDeclaration, classDeclaration.obj.getType(), null);
+                configureClassInheritance(classDeclaration, classDeclaration.obj.getType(), null);
+                configureImplementedInterface(classDeclaration, classDeclaration.obj.getType(), null);
                 generator.registerClass(classDeclaration.obj);
             }
         }
@@ -160,17 +177,18 @@ public final class CodeGenerationController extends VisitorAdaptor {
      * assigned to those objects during code generation. Fields retain their specialized derived objects because their
      * addresses are fixed layout offsets and do not change during code generation.</p>
      */
-    private void configureInheritance(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
+    private void configureClassInheritance(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
         if (!(declaration instanceof ClassDecl_Derived derived) || declaration.obj.getType().getElemType() == null)
             return;
 
-        var declaredBase = declaration.obj.getType().getElemType();
-        if (specialization == null && !(declaredBase instanceof GenericTypeApplicationStruct)) return;
+        // Only handle class inheritance in a generic context
+        var extendedType = declaration.obj.getType().getElemType();
+        if (specialization == null && !(extendedType instanceof GenericTypeApplicationStruct)) return;
 
-        var generatedBase = declaredBase;
-        if (declaredBase instanceof GenericTypeApplicationStruct) {
-            var inheritance = (ExtendedClassName_Valid)derived.getExtendedClassName();
-            generatedBase = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
+        var generatedExtendedClass = extendedType;
+        if (extendedType instanceof GenericTypeApplicationStruct) {
+            var inheritance = (ExtendedTypeName_Valid)derived.getExtendedTypeName();
+            generatedExtendedClass = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
         }
 
         // Rebuild the members - take the existing fields from the derived specialized Obj and methods from the base specialized Obj
@@ -178,7 +196,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
         generatedType.getMembers().stream()
                 .filter(member -> member.getKind() != Obj.Meth)
                 .forEach(generatedMembers::insertKey);
-        generatedBase.getMembers().stream()
+        generatedExtendedClass.getMembers().stream()
                 .filter(member -> member.getKind() == Obj.Meth)
                 .forEach(generatedMembers::insertKey);
 
@@ -189,7 +207,45 @@ public final class CodeGenerationController extends VisitorAdaptor {
             generatedMembers.insertKey(generatedMethod);
         }
 
-        generatedType.setElementType(generatedBase);
+        generatedType.setElementType(generatedExtendedClass);
+        generatedType.setMembers(generatedMembers);
+    }
+
+    /**
+     * Similar to {@link #configureClassInheritance(ClassDecl, Struct, GenericSpecialization)}, but handles interface implementation.
+     * It replaces copied default method objects with the actual objects from the specialized interface.
+     */
+    private void configureImplementedInterface(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
+        if (!(declaration instanceof ClassDecl_Derived derived) ||
+                !(derived.getExtendedTypeName() instanceof ExtendedTypeName_Valid inheritance))
+            return;
+
+        // Only handle interface inheritance in a generic context
+        var extendedType = inheritance.getType().struct;
+        if (extendedType.getKind() != Struct.Interface || (specialization == null && !(extendedType instanceof GenericTypeApplicationStruct)))
+            return;
+
+        var generatedExtendedInterface = extendedType;
+        if (extendedType instanceof GenericTypeApplicationStruct) {
+            generatedExtendedInterface = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
+        }
+
+        // Rebuild the members - take the existing fields and interface method implementations from the derived specialized Obj
+        // and default (implemented) methods from the specialized interface Obj
+        var declaredMethodNames = getDeclaredMethods(declaration).stream()
+                .map(method -> method.obj.getName())
+                .collect(Collectors.toSet());
+        var generatedMembers = new HashTableDataStructure();
+        generatedType.getMembers().forEach(generatedMembers::insertKey);
+        generatedExtendedInterface.getMembers().stream()
+                .filter(method ->
+                        method.getKind() == Obj.Meth &&
+                        method.getFpPos() != MethodTypes.LOCAL_UNIMPLEMENTED.value &&
+                        !declaredMethodNames.contains(method.getName()))
+                .forEach(method -> {
+                    generatedMembers.deleteKey(method.getName());
+                    generatedMembers.insertKey(method);
+                });
         generatedType.setMembers(generatedMembers);
     }
 }

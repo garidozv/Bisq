@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
-import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericObj;
@@ -29,9 +28,9 @@ public class MonomorphizationPlanner {
         registerUse(new GenericMethodUse(call, declaration, typeArguments), enclosingDeclaration);
     }
 
-    public void registerTypeUse(Factor_NewObject creation, GenericTypeObj declaration, List<Struct> typeArguments,
+    public void registerTypeUse(SyntaxNode use, GenericTypeObj declaration, List<Struct> typeArguments,
                                 GenericObj enclosingDeclaration) {
-        registerUse(new GenericTypeUse(creation, declaration, typeArguments), enclosingDeclaration);
+        registerUse(new GenericTypeUse(use, declaration, typeArguments), enclosingDeclaration);
     }
 
     public MonomorphizationPlan build() {
@@ -145,7 +144,7 @@ public class MonomorphizationPlanner {
         }
     }
 
-    private record GenericTypeUse(Factor_NewObject node, GenericTypeObj declaration,
+    private record GenericTypeUse(SyntaxNode node, GenericTypeObj declaration,
                                   List<Struct> typeArguments) implements GenericUse {
         @Override
         public GenericTypeSpecialization createSpecialization(List<Struct> closedArguments) {

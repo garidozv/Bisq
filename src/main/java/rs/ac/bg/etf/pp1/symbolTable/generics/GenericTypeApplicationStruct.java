@@ -1,5 +1,6 @@
 package rs.ac.bg.etf.pp1.symbolTable.generics;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -61,6 +62,16 @@ public final class GenericTypeApplicationStruct extends Struct {
     public Obj findMember(String name) {
         var member = declaration.getType().getMembersTable().searchKey(name);
         return GenericTypeUtils.substituteObjectTypes(member, substitution);
+    }
+
+    /**
+     * Returns the declaration members with this application's arguments substituted into their types.
+     */
+    @Override
+    public Collection<Obj> getMembers() {
+        return declaration.getType().getMembers().stream()
+                .map(member -> GenericTypeUtils.substituteObjectTypes(member, substitution))
+                .toList();
     }
 
     /**

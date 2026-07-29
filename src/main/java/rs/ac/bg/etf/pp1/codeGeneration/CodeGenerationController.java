@@ -3,6 +3,8 @@ package rs.ac.bg.etf.pp1.codeGeneration;
 import java.util.ArrayList;
 
 import rs.ac.bg.etf.pp1.ast.ClassDecl;
+import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
+import rs.ac.bg.etf.pp1.ast.ExtendedClassName_Valid;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_MethodDecl;
@@ -13,9 +15,14 @@ import rs.ac.bg.etf.pp1.ast.ProgramDeclList_ConstDecl;
 import rs.ac.bg.etf.pp1.ast.ProgramDeclList_InterfaceDecl;
 import rs.ac.bg.etf.pp1.ast.ProgramDeclList_VarDecl;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
+import rs.etf.pp1.symboltable.concepts.Obj;
+import rs.etf.pp1.symboltable.concepts.Struct;
+import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 
 /**
  * Controls code generation by deciding which concrete definitions must be generated and delegating that to the {@link CodeGenerator}.
@@ -120,10 +127,12 @@ public final class CodeGenerationController extends VisitorAdaptor {
             var classDeclaration = classDeclarations.getClassDecl();
             if (classDeclaration.obj instanceof GenericTypeObj genericType) {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
+                    configureInheritance(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     generator.registerClass(specialization.getGeneratedObject());
                 }
             }
             else {
+                configureInheritance(classDeclaration, classDeclaration.obj.getType(), null);
                 generator.registerClass(classDeclaration.obj);
             }
         }
@@ -136,5 +145,51 @@ public final class CodeGenerationController extends VisitorAdaptor {
         else if (declarations instanceof ProgramDeclList_VarDecl varDeclarations) {
             registerClasses(varDeclarations.getProgramDeclList());
         }
+    }
+
+    /**
+     * Connects a concrete derived type to its concrete base and makes its virtual table reuse the generated base method objects.
+     *
+     * <p>After semantic analysis, the base and derived declaration types contain their complete member tables, but generic
+     * members may still use open types. Creating their specializations produces new objects whose member types are closed.
+     * However, the inherited members in the derived specialization are copies made from the derived declaration; they are
+     * not the member objects belonging to the concrete base specialization.</p>
+     *
+     * <p>This method replaces those copied inherited methods with the actual method objects from the concrete base
+     * specialization, then overlays methods declared by the derived class. This is necessary because method addresses are
+     * assigned to those objects during code generation. Fields retain their specialized derived objects because their
+     * addresses are fixed layout offsets and do not change during code generation.</p>
+     */
+    private void configureInheritance(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
+        if (!(declaration instanceof ClassDecl_Derived derived) || declaration.obj.getType().getElemType() == null)
+            return;
+
+        var declaredBase = declaration.obj.getType().getElemType();
+        if (specialization == null && !(declaredBase instanceof GenericTypeApplicationStruct)) return;
+
+        var generatedBase = declaredBase;
+        if (declaredBase instanceof GenericTypeApplicationStruct) {
+            var inheritance = (ExtendedClassName_Valid)derived.getExtendedClassName();
+            generatedBase = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
+        }
+
+        // Rebuild the members - take the existing fields from the derived specialized Obj and methods from the base specialized Obj
+        var generatedMembers = new HashTableDataStructure();
+        generatedType.getMembers().stream()
+                .filter(member -> member.getKind() != Obj.Meth)
+                .forEach(generatedMembers::insertKey);
+        generatedBase.getMembers().stream()
+                .filter(member -> member.getKind() == Obj.Meth)
+                .forEach(generatedMembers::insertKey);
+
+        // Add methods from the derived specialized Obj and handle overriding while doing that
+        for (var method : getDeclaredMethods(declaration)) {
+            var generatedMethod = specialization == null ? method.obj : specialization.resolveObject(method.obj);
+            generatedMembers.deleteKey(generatedMethod.getName());
+            generatedMembers.insertKey(generatedMethod);
+        }
+
+        generatedType.setElementType(generatedBase);
+        generatedType.setMembers(generatedMembers);
     }
 }

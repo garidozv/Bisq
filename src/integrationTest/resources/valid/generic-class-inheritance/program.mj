@@ -1,0 +1,115 @@
+program GenericClassInheritance
+
+class Base<T> {
+    T value;
+    {
+        void set(T item) { value = item; }
+        T get() { return value; }
+        int kind() { return 1; }
+    }
+}
+
+class Derived<T> extends Base<T> {
+    T extra;
+    {
+        void setExtra(T item) { extra = item; }
+        T get() { return extra; }
+        int kind() { return 2; }
+    }
+}
+
+class Leaf<T> extends Derived<T> {}
+
+class IntDerived extends Base<int> {
+    {
+        int kind() { return 3; }
+    }
+}
+
+class Ordinary {
+    {
+        int ordinaryKind() { return 4; }
+    }
+}
+
+class GenericFromOrdinary<T> extends Ordinary {}
+class ArrayDerived<T> extends Base<T[]> {}
+
+class LeftBase {
+    int leftValue;
+}
+
+class RightBase {
+    int rightValue;
+}
+
+class Left extends LeftBase {}
+class Right extends RightBase {}
+
+class Pair<T : LeftBase, U : RightBase> {
+    T left;
+    U right;
+    {
+        void set(T first, U second) {
+            left = first;
+            right = second;
+        }
+
+        int sum() {
+            return left.leftValue + right.rightValue;
+        }
+    }
+}
+
+class DerivedPair<T : LeftBase, U : RightBase> extends Pair<T, U> {}
+{
+    void main() Base<int> base; Base<char> charBase; Derived<int> derived; Derived<char> chars;
+                Leaf<int> leaf; IntDerived fixed; GenericFromOrdinary<int> genericOrdinary;
+                ArrayDerived<int> arrayDerived; int items[]; int returned[];
+                Left left; Right right; DerivedPair<Left, Right> pair; {
+        derived = new Derived<int>();
+        derived.set(10);
+        derived.setExtra(20);
+        base = derived;
+        print(base.get());
+        print(derived.value);
+        print(base.kind());
+
+        fixed = new IntDerived();
+        fixed.set(30);
+        base = fixed;
+        print(base.get());
+        print(base.kind());
+
+        leaf = new Leaf<int>();
+        leaf.set(40);
+        leaf.setExtra(50);
+        base = leaf;
+        print(base.get());
+        print(base.kind());
+
+        genericOrdinary = new GenericFromOrdinary<int>();
+        print(genericOrdinary.ordinaryKind());
+
+        items = new int[1];
+        items[0] = 6;
+        arrayDerived = new ArrayDerived<int>();
+        arrayDerived.set(items);
+        returned = arrayDerived.get();
+        print(returned[0]);
+
+        chars = new Derived<char>();
+        chars.setExtra('A');
+        charBase = chars;
+        print(charBase.get());
+
+        left = new Left();
+        left.leftValue = 7;
+        right = new Right();
+        right.rightValue = 8;
+        pair = new DerivedPair<Left, Right>();
+        pair.set(left, right);
+        print(pair.sum());
+        print(eol);
+    }
+}

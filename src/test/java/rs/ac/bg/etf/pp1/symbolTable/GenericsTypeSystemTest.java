@@ -216,6 +216,23 @@ class GenericsTypeSystemTest {
     }
 
     @Test
+    void appliedTypesExposeMembersWithSubstitutedTypes() {
+        var parameter = TabUtils.createGenericParameter("T");
+        var base = TabUtils.createGenericType("Base", Struct.Class, List.of(parameter));
+        var members = new HashTableDataStructure();
+        members.insertKey(new Obj(Obj.Fld, "value", parameter.getType()));
+        members.insertKey(new Obj(Obj.Meth, "get", parameter.getType()));
+        base.getType().setMembers(members);
+
+        var applied = base.applyArguments(List.of(Tab.intType));
+        var substitutedMembers = applied.getMembers();
+
+        assertEquals(2, substitutedMembers.size());
+        assertTrue(substitutedMembers.stream().allMatch(member -> member.getType() == Tab.intType));
+        assertSame(parameter.getType(), base.getType().getMembersTable().searchKey("value").getType());
+    }
+
+    @Test
     void genericSymbolsPreserveDeclarationMetadataAndTabInsertionSemantics() {
         var first = TabUtils.createGenericParameter("T");
         var second = TabUtils.createGenericParameter("U");

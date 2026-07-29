@@ -1,14 +1,16 @@
 package rs.ac.bg.etf.pp1;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
 
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
+import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
+import rs.etf.pp1.symboltable.concepts.Obj;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,24 +55,13 @@ class GenericClassTest extends CompilerTestBase {
                 """);
 
         assertTrue(analysis.analyzer().passed());
-        var declarations = new ArrayList<GenericTypeObj>();
-        analysis.program().traverseBottomUp(new VisitorAdaptor() {
-            @Override
-            public void visit(ClassDecl_NonDerived declaration) {
-                if (declaration.obj instanceof GenericTypeObj genericType) declarations.add(genericType);
-            }
-
-            @Override
-            public void visit(ClassDecl_Derived declaration) {
-                if (declaration.obj instanceof GenericTypeObj genericType) declarations.add(genericType);
-            }
-        });
+        var declarations = findGenericTypes(analysis.program());
 
         var plan = analysis.analyzer().createMonomorphizationPlan();
-        assertEquals(2, plan.getNeededSpecializations(declarations.get(0)).size());
-        assertEquals(1, plan.getNeededSpecializations(declarations.get(1)).size());
-        assertTrue(plan.getNeededSpecializations(declarations.get(2)).isEmpty());
-        for (var specialization : plan.getNeededSpecializations(declarations.get(0))) {
+        assertEquals(2, plan.getNeededSpecializations(declarations.get("Box")).size());
+        assertEquals(1, plan.getNeededSpecializations(declarations.get("Wrapper")).size());
+        assertTrue(plan.getNeededSpecializations(declarations.get("Unused")).isEmpty());
+        for (var specialization : plan.getNeededSpecializations(declarations.get("Box"))) {
             assertTrue(specialization.getGeneratedObject().getType().getMembers().stream()
                     .allMatch(member -> GenericTypeUtils.isClosed(member.getType())));
         }
@@ -230,7 +221,128 @@ class GenericClassTest extends CompilerTestBase {
         assertFalse(analyzer.passed());
     }
 
+    @Test
+    void supportsGenericClassInheritanceAndPlansBaseSpecializations() throws Exception {
+        var analysis = analyzeProgram("""
+                program GenericInheritance
+
+                class Base<T> {
+                    T value;
+                    {
+                        void set(T item) { value = item; }
+                        T get() { return value; }
+                    }
+                }
+
+                class Derived<T> extends Base<T> {
+                    T extra;
+                    {
+                        T get() { return extra; }
+                    }
+                }
+
+                class Leaf<T> extends Derived<T> {}
+                class IntDerived extends Base<int> {}
+
+                class Left {}
+                class Right {}
+                class Pair<T : Left, U : Right> {
+                    T left;
+                    U right;
+                }
+                class DerivedPair<T : Left, U : Right> extends Pair<T, U> {}
+                {
+                    void main() Base<int> base; Derived<int> derived; Derived<char> chars;
+                                Leaf<int> leaf; IntDerived fixed; DerivedPair<Left, Right> pair; {
+                        derived = new Derived<int>();
+                        chars = new Derived<char>();
+                        leaf = new Leaf<int>();
+                        fixed = new IntDerived();
+                        pair = new DerivedPair<Left, Right>();
+                        base = derived;
+                        base = leaf;
+                        base = fixed;
+                    }
+                }
+                """);
+
+        assertTrue(analysis.analyzer().passed());
+
+        var declarations = findGenericTypes(analysis.program());
+
+        var plan = analysis.analyzer().createMonomorphizationPlan();
+        assertEquals(2, plan.getNeededSpecializations(declarations.get("Base")).size());
+        assertEquals(2, plan.getNeededSpecializations(declarations.get("Derived")).size());
+        assertEquals(1, plan.getNeededSpecializations(declarations.get("Leaf")).size());
+        assertEquals(1, plan.getNeededSpecializations(declarations.get("Pair")).size());
+        assertEquals(1, plan.getNeededSpecializations(declarations.get("DerivedPair")).size());
+    }
+
+    @Test
+    void rejectsInvalidGenericClassInheritance() throws Exception {
+        var invalidOverride = analyze("""
+                program InvalidGenericOverride
+                class Base<T> {
+                    { T get() T value; { return value; } }
+                }
+                class Broken<T> extends Base<T> {
+                    { char get() { return 'x'; } }
+                }
+                { void main() {} }
+                """);
+        assertFalse(invalidOverride.passed());
+
+        var invalidBases = analyze("""
+                program InvalidGenericBases
+                class Self<T> extends Self<T> {}
+                class ParameterBase<T> extends T {}
+                { void main() {} }
+                """);
+        assertFalse(invalidBases.passed());
+
+        var invalidAssignment = analyze("""
+                program InvalidInheritedAssignment
+                class Base<T> {}
+                class Derived<T> extends Base<T> {}
+                { void main() Base<int> base; Derived<char> derived; {
+                    derived = new Derived<char>();
+                    base = derived;
+                } }
+                """);
+        assertFalse(invalidAssignment.passed());
+
+        var invalidConstraint = analyze("""
+                program InvalidInheritedConstraint
+                class Printable {}
+                class Base<T : Printable> {}
+                class Derived<T> extends Base<T> {}
+                { void main() {} }
+                """);
+        assertFalse(invalidConstraint.passed());
+    }
+
     private static SemanticAnalyzer analyze(String source) throws Exception {
         return analyzeProgram(source).analyzer();
+    }
+
+    private static HashMap<String, GenericTypeObj> findGenericTypes(Program program) {
+        var declarations = new HashMap<String, GenericTypeObj>();
+        program.traverseBottomUp(new VisitorAdaptor() {
+            private void add(Obj declaration) {
+                if (declaration instanceof GenericTypeObj genericType)
+                    declarations.put(genericType.getName(), genericType);
+            }
+
+            @Override
+            public void visit(ClassDecl_NonDerived declaration) {
+                add(declaration.obj);
+            }
+
+            @Override
+            public void visit(ClassDecl_Derived declaration) {
+                add(declaration.obj);
+            }
+        });
+        return declarations;
     }
 }

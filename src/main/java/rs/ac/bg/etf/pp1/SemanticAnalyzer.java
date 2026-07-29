@@ -188,7 +188,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				.toArray(Obj[]::new);
 
 		for (int i = 0; i < explicitParamCnt; i++) {
-			if (!firstMethodParams[i].getType().equals(secondMethodParams[i].getType())) {
+			if (!TabUtils.equals(firstMethodParams[i].getType(), secondMethodParams[i].getType())) {
 				return false;
 			}
 		}
@@ -597,9 +597,20 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(ExtendedClassName_Valid extendedClassName) {
 		if (currentType == null || currentClass == null) return;
+		if (currentType == currentClass.getType() ||
+				currentType instanceof GenericTypeApplicationStruct application && application.getDeclaration() == currentClass) {
+			report_error("A class cannot extend itself", extendedClassName);
+			return;
+		}
 
 		if (currentType.getKind() == Struct.Class) {
 			currentClass.getType().setElementType(currentType);
+			if (currentType instanceof GenericTypeApplicationStruct application) {
+                // For a non-generic class, there is no enclosing generic declaration, so this becomes a root use.
+                // This is intentional because ordinary classes are always generated, so their generic bases must also be specialized.
+				monomorphizationPlanner.registerTypeUse(extendedClassName, application.getDeclaration(),
+                        application.getTypeArguments(), getEnclosingGenericDeclaration());
+			}
 
 			// Add implemented interfaces
 			for (Struct interfaceStruct : currentType.getImplementedInterfaces()) {
@@ -642,12 +653,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 					// Not overridden, add the method object to the current class
 					Tab.currentScope.addToLocals(baseMethod);
 				}
-				else if (!hasMatchingSignature(baseMethod, method) ||
-						!baseMethod.getType().equals(method.getType())) {
-					report_error(
-							String.format("Signature of overridden method '%s' must not be changed",
-									baseMethod.getName()),
-							classDecl);
+				else if (!hasMatchingSignature(baseMethod, method) || !TabUtils.equals(baseMethod.getType(), method.getType())) {
+					report_error(String.format("Signature of overridden method '%s' must not be changed", baseMethod.getName()), classDecl);
 				}
 			}
 		}
@@ -668,12 +675,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 						Tab.currentScope.addToLocals(baseMethod);
 					}
 				}
-				else if (!hasMatchingSignature(method, baseMethod) ||
-							!baseMethod.getType().equals(method.getType())) {
-						report_error(
-								String.format("Signature of overridden method '%s' must not be changed",
-										baseMethod.getName()),
-								classDecl);
+				else if (!hasMatchingSignature(method, baseMethod) || !TabUtils.equals(baseMethod.getType(), method.getType())) {
+                    report_error(String.format("Signature of overridden method '%s' must not be changed", baseMethod.getName()), classDecl);
 				}
 			}
 		}

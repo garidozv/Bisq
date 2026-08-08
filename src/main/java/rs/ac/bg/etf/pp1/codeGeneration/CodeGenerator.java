@@ -655,21 +655,23 @@ public class CodeGenerator extends VisitorAdaptor {
         }
 	}
 
-	@Override
-	public void visit(Designator_MemberAccess designator) {
-		var objectDesignatorObj = resolveObject(designator.getDesignator().obj);
-		var memberDesignatorObj = resolveObject(designator.obj);
-		
-		if (!objectDesignatorObj.getName().equals("this")) {
-			// If field or class method, load it (object addr is already loaded)
-			Code.load(objectDesignatorObj);
-		}
+    @Override
+    public void visit(Designator_MemberAccess designator) {
+        var objectDesignatorObj = resolveObject(designator.getDesignator().obj);
 
-		if (memberDesignatorObj.getKind() != Obj.Meth && memberDesignatorObj.getType().getKind() == Struct.Array &&
-			!(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
-			Code.load(memberDesignatorObj);
-		}
-	}
+        if (!objectDesignatorObj.getName().equals("this")) {
+            // If field or class method, load it (object addr is already loaded)
+            Code.load(objectDesignatorObj);
+        }
+
+        if (designator.obj.getKind() != Obj.Meth) {
+            var memberDesignatorObj = resolveObject(designator.obj);
+            if (memberDesignatorObj.getType().getKind() == Struct.Array &&
+                    !(designator.getParent() instanceof DesignatorStatement_AssignExpr)) {
+                Code.load(memberDesignatorObj);
+            }
+        }
+    }
 	
 	@Override
 	public void visit(DesignatorStatement_Call designatorStatement) {

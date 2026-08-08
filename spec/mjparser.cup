@@ -74,7 +74,7 @@ nonterminal
 	ProgramName, Program, ProgramDeclList, MethodReturnType, WhileToken,
 	FormParVar, ClassName, ExtendedTypeName, InterfaceName,
 	ConditionList, CondTermList, ColToken, ForInitializer, ForCondition, ForPostStatement,
-	GenericMethodSignature, TypeParameters, TypeParameterList;
+	GenericMethodSignature, TypeParameters, TypeParameterList, GenericParameterScopeStart;
 
 nonterminal rs.ac.bg.etf.pp1.symbolTable.generics.TypeArguments
 	TypeArgumentList;
@@ -171,6 +171,8 @@ ClassName ::=	(ClassName_Regular) IDENT
 
 InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 					|
+					(InterfaceBody_GenericMethodDecl) InterfaceBody GenericMethodDecl
+					|
 					(InterfaceBody_MethodSignature) InterfaceBody MethodSignature SEMI 
 					|
 					(InterfaceBody_Epsilon) /* epsilon */
@@ -226,8 +228,11 @@ FormParVar ::=	(FormParVar_NonArray) Type IDENT
 				{: parser.report_recovered_error(); :}
 				;
 
-TypeParameters ::=	(TypeParameters_Present) LT TypeParameterList GT
+TypeParameters ::=	(TypeParameters_Present) LT GenericParameterScopeStart TypeParameterList GT
 					;
+
+GenericParameterScopeStart ::=	(GenericParameterScopeStart) /* epsilon */
+							    ;
 
 TypeParameterList ::=	(TypeParameterList_Parameter) TypeParameter
 						|

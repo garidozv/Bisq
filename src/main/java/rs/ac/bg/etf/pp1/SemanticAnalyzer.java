@@ -1,6 +1,8 @@
 package rs.ac.bg.etf.pp1;
 
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.function.UnaryOperator;
@@ -31,6 +33,7 @@ import rs.ac.bg.etf.pp1.ast.DesignatorStatement_AssignSetop;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Call;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Dec;
 import rs.ac.bg.etf.pp1.ast.DesignatorStatement_Inc;
+import rs.ac.bg.etf.pp1.ast.Designator;
 import rs.ac.bg.etf.pp1.ast.Designator_ArrayAccess;
 import rs.ac.bg.etf.pp1.ast.Designator_Ident;
 import rs.ac.bg.etf.pp1.ast.Designator_MemberAccess;
@@ -60,6 +63,8 @@ import rs.ac.bg.etf.pp1.ast.InterfaceDecl;
 import rs.ac.bg.etf.pp1.ast.InterfaceName_Generic;
 import rs.ac.bg.etf.pp1.ast.InterfaceName_Regular;
 import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
+import rs.ac.bg.etf.pp1.ast.GenericMethodSignature;
+import rs.ac.bg.etf.pp1.ast.GenericParameterScopeStart;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodName;
 import rs.ac.bg.etf.pp1.ast.MethodReturnType_Void;
@@ -110,14 +115,14 @@ import rs.ac.bg.etf.pp1.ast.DoToken;
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class SemanticAnalyzer extends VisitorAdaptor {
 
-	private final static String VirtualMethodTableName = "__vtp";
+	private final static String VirtualMethodTableName = TabUtils.createInternalName("vtp");
 
 	private Obj programObj = null;
 	private Struct currentType = null;
 	private Obj currentMethod = null;
 	private Obj currentClass = null;
 	private Obj currentInterface = null;
-    private final List<Obj> currentGenericParameters = new ArrayList<>();
+    private final Deque<List<Obj>> genericParameterScopes = new ArrayDeque<>();
     // Keeps track of applications of the generic class or interface currently being declared.
     // They must be revalidated at the end because requirements for its type parameters may be discovered later in the type body.
     // Currently, this happens when a type parameter is used as an array element, so we mustn't allow application of the set.
@@ -262,8 +267,8 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 		programScope = Tab.currentScope;
 
 		// Reserve space for two global variables used to store temporary values for 'map' statements
-		Tab.currentScope.addToLocals(new Obj(Obj.Var, "__temp1", Tab.noType));
-		Tab.currentScope.addToLocals(new Obj(Obj.Var, "__temp2", Tab.noType));
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, TabUtils.createInternalName("temp1"), Tab.noType));
+		Tab.currentScope.addToLocals(new Obj(Obj.Var, TabUtils.createInternalName("temp2"), Tab.noType));
 	}
 
 	@Override
@@ -422,6 +427,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 
 	@Override
+	public void visit(GenericParameterScopeStart scopeStart) {
+		genericParameterScopes.push(new ArrayList<>());
+	}
+
+	@Override
 	public void visit(TypeParameter_Unbounded typeParameter) {
 		typeParameter.obj = createGenericParameter(typeParameter.getI1(), null, typeParameter);
 	}
@@ -440,10 +450,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error(String.format("Multiple definitions of the name '%s'", name), methodName);
 		}
 		else {
-            // Currently, only global methods can declare their own generic parameters
-            var isGenericMethod = currentClass == null && currentInterface == null && !currentGenericParameters.isEmpty();
-            if (isGenericMethod) {
-                currentMethod = TabUtils.insert(TabUtils.createGenericMethod(name, currentType, List.copyOf(currentGenericParameters)));
+			var isGenericMethod = methodName.getParent() instanceof GenericMethodSignature;
+			if (isGenericMethod) {
+				var owner = currentClass != null ? currentClass : currentInterface;
+				currentMethod = TabUtils.insert(TabUtils.createGenericMethod(name, currentType,
+						getCurrentGenericParameters(), owner, getEnclosingGenericParameters()));
             }
             else {
                 currentMethod = Tab.insert(Obj.Meth, name, currentType);
@@ -477,7 +488,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(GenericMethodDecl methodDecl) {
 		methodDecl.obj = completeCurrentMethod(methodDecl, false);
-		if (currentClass == null && currentInterface == null) currentGenericParameters.clear();
+		popGenericParameterScope();
 	}
 
 	private Obj completeCurrentMethod(SyntaxNode methodDecl, boolean canBeMain) {
@@ -580,12 +591,12 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error(String.format("Multiple definitions of the name '%s'", name), className);
 			return;
 		}
-		if (currentGenericParameters.stream().anyMatch(parameter -> parameter.getName().equals(name))) {
+		if (isGenericParameterDefined(name)) {
 			report_error("A class and its generic parameter cannot have the same name", className);
 		}
 
 		try {
-			var genericClass = TabUtils.createGenericType(name, Struct.Class, List.copyOf(currentGenericParameters));
+			var genericClass = TabUtils.createGenericType(name, Struct.Class, getCurrentGenericParameters());
 			currentClass = TabUtils.insert(genericClass);
 			currentType = currentClass.getType();
 			Tab.openScope();
@@ -736,12 +747,12 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			report_error(String.format("Multiple definitions of the name '%s'", name), interfaceName);
 			return;
 		}
-		if (currentGenericParameters.stream().anyMatch(parameter -> parameter.getName().equals(name))) {
+		if (isGenericParameterDefined(name)) {
 			report_error("An interface and its generic parameter cannot have the same name", interfaceName);
 		}
 
 		try {
-			var genericInterface = TabUtils.createGenericType(name, Struct.Interface, List.copyOf(currentGenericParameters));
+			var genericInterface = TabUtils.createGenericType(name, Struct.Interface, getCurrentGenericParameters());
 			currentInterface = TabUtils.insert(genericInterface);
 			currentType = currentInterface.getType();
 			Tab.openScope();
@@ -850,11 +861,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 				memberObj = lookupType.getMembersTable().searchKey(objectName);
 			}
 
-            // Members found in the open type scope still use declaration types, so substitute them with this receiver's application.
+            // Members found in the open type scope still use declaration types, so resolve them based on this receiver's application.
             // For example, if we are inside class Node<T>, and it has fields A of type T and B of type Node<T[]>. If we try accessing
             // B and getting its A field, it will no longer be just T, but T[]. This is why we have to perform substitution.
 			if (memberObj != null && receiverTypeApplication != null && memberBelongsToCurrentType) {
-				memberObj = GenericTypeUtils.substituteObjectTypes(memberObj, receiverTypeApplication.getSubstitution());
+				memberObj = receiverTypeApplication.resolveMember(memberObj);
 			}
 
 			if(memberObj == null || memberObj.getKind() != Obj.Fld && memberObj.getKind() != Obj.Meth) {
@@ -1402,7 +1413,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     private void clearGenericTypeState() {
-        currentGenericParameters.clear();
+        popGenericParameterScope();
         genericTypeApplicationsToRevalidate.clear();
     }
 
@@ -1423,17 +1434,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	}
 
 	private Obj createGenericParameter(String name, Struct constraint, SyntaxNode node) {
-		if (currentClass != null) {
-			report_error("Class methods cannot declare generic parameters", node);
-			return TabUtils.createGenericParameter(name);
-		}
-
-		for (var parameter : currentGenericParameters) {
-			if (parameter.getName().equals(name)) {
-				report_error(String.format("Multiple definitions of generic parameter '%s'", name), node);
-				return parameter;
-			}
-		}
+        var existingParameter = findGenericParameter(name);
+        if (existingParameter != null) {
+            report_error(String.format("Multiple definitions of generic parameter '%s'", name), node);
+            return existingParameter;
+        }
 
 		Obj parameter;
 		try {
@@ -1444,7 +1449,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			parameter = TabUtils.createGenericParameter(name);
 		}
 
-		currentGenericParameters.add(parameter);
+		getCurrentGenericParameters().add(parameter);
 		return parameter;
 	}
 
@@ -1480,13 +1485,18 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
 		var appliedRef = (CallableRef_Applied)callableRef;
 		try {
-			var typeArguments = appliedRef.getTypeArgumentList().typearguments.types();
-			var substitution = genericMethod.validateAndCreateSubstitution(typeArguments);
+            // Find the type arguments applied to the class or interface that declares this method (if they exist),
+            // so they can be combined with the method's own type arguments
+			var methodTypeArguments = appliedRef.getTypeArgumentList().typearguments.types();
+			var ownerApplication = resolveGenericMethodOwnerApplication(genericMethod, appliedRef.getDesignator());
+			var ownerTypeArguments = ownerApplication == null ? List.<Struct>of() : ownerApplication.getTypeArguments();
+			var ownerSubstitution = ownerApplication == null ? Map.<GenericParameterStruct, Struct>of() : ownerApplication.getSubstitution();
+			var substitution = genericMethod.validateAndCreateSubstitution(methodTypeArguments, ownerSubstitution);
 			if (!isCallableWith(genericMethod, argsStruct, substitution)) {
 				reportCallParameterMismatch(method, node);
 				return Tab.noType;
 			}
-			monomorphizationPlanner.registerMethodUse(appliedRef, genericMethod, typeArguments, getEnclosingGenericDeclaration());
+			monomorphizationPlanner.registerMethodUse(appliedRef, genericMethod, ownerTypeArguments, methodTypeArguments, getEnclosingGenericDeclaration());
 			return GenericTypeUtils.substituteType(genericMethod.getType(), substitution);
 		}
 		catch (IllegalArgumentException exception) {
@@ -1506,12 +1516,64 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     }
 
     // A generic-aware symbol type lookup. Should be used instead of 'Tab.find()'
-	private Obj findTypeSymbol(String name) {
-        for (var genericParam : currentGenericParameters) {
-            if (genericParam.getName().equals(name)) return genericParam;
-        }
-		return Tab.find(name);
+    private Obj findTypeSymbol(String name) {
+        var genericParameter = findGenericParameter(name);
+        return genericParameter != null ? genericParameter : Tab.find(name);
+    }
+
+	private GenericTypeApplicationStruct resolveGenericMethodOwnerApplication(GenericMethodObj method, Designator designator) {
+		if (!(method.getOwner() instanceof GenericTypeObj genericOwner))
+			return null;
+
+		Struct receiverType;
+		if (designator instanceof Designator_MemberAccess memberAccess) {
+			receiverType = memberAccess.getDesignator().obj.getType();
+		}
+		else {
+			var currentOwner = currentClass != null ? currentClass : currentInterface;
+			if (currentOwner instanceof GenericTypeObj currentGenericOwner) {
+                receiverType = GenericTypeUtils.createOpenApplication(currentGenericOwner);
+            }
+			else if (currentOwner != null) {
+                receiverType = currentOwner.getType();
+            }
+			else {
+                throw new IllegalArgumentException("A generic member method requires a receiver");
+            }
+		}
+
+		var ownerApplication = GenericTypeUtils.findGenericTypeApplication(receiverType, genericOwner);
+		if (ownerApplication == null)
+			throw new IllegalArgumentException("Cannot resolve the generic method's declaring type from the receiver type");
+		return ownerApplication;
 	}
+
+	private List<Obj> getCurrentGenericParameters() {
+		if (genericParameterScopes.isEmpty())
+			throw new IllegalStateException("No generic parameter scope is active");
+		return genericParameterScopes.peek();
+	}
+
+	private List<Obj> getEnclosingGenericParameters() {
+		return genericParameterScopes.stream().skip(1).flatMap(List::stream).toList();
+	}
+
+    private void popGenericParameterScope() {
+        if (!genericParameterScopes.isEmpty()) genericParameterScopes.pop();
+    }
+
+    private Obj findGenericParameter(String name) {
+        for (var scope : genericParameterScopes) {
+            for (var parameter : scope) {
+                if (parameter.getName().equals(name)) return parameter;
+            }
+        }
+        return null;
+    }
+
+    private boolean isGenericParameterDefined(String name) {
+        return findGenericParameter(name) != null;
+    }
 
 	private Obj getSymbolObj(String symbolName) {
 		Obj tempObj;

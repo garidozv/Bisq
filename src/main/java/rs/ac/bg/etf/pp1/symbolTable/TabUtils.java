@@ -11,6 +11,7 @@ import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
 public class TabUtils {
+    private static final String INTERNAL_NAME_PREFIX = "__";
 	
 	// Enum is used for sets
 	public static final Struct setType = new Struct(Struct.Enum);	
@@ -58,6 +59,10 @@ public class TabUtils {
 		return obj;
 	}
 
+    public static String createInternalName(String name) {
+        return INTERNAL_NAME_PREFIX + name;
+    }
+
 	/**
      * Creates the {@link Obj#Type} symbol whose type is one generic parameter.
      */
@@ -81,13 +86,24 @@ public class TabUtils {
 		return new GenericTypeObj(name, new Struct(kind), genericParameters);
 	}
 
-	/**
-	 * Creates, but does not insert in symbol table, a generic global method.
+    /**
+     * Creates a generic global method without inserting it into the symbol table.
      */
 	public static GenericMethodObj createGenericMethod(String name, Struct returnType, List<Obj> genericParameters) {
-        if (genericParameters == null)
-            throw new IllegalArgumentException("Generic parameters are required");
-		return new GenericMethodObj(name, returnType, genericParameters);
+        return createGenericMethod(name, returnType, genericParameters, null, List.of());
+	}
+
+    /**
+     * Creates a generic member method without inserting it into the symbol table.
+     *
+     * @param owner Declaring class or interface.
+     * @param enclosingTypeParameters Generic parameters declared by the owner.
+     */
+	public static GenericMethodObj createGenericMethod(String name, Struct returnType, List<Obj> genericParameters,
+			Obj owner, List<Obj> enclosingTypeParameters) {
+		if (genericParameters == null)
+			throw new IllegalArgumentException("Generic parameters are required");
+		return new GenericMethodObj(name, returnType, genericParameters, owner, enclosingTypeParameters);
 	}
 
 	/**

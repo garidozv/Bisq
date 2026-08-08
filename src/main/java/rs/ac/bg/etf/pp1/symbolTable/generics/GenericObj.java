@@ -19,8 +19,12 @@ public abstract class GenericObj extends Obj {
     private final List<Obj> typeParameters;
 
     protected GenericObj(int kind, String name, Struct type, List<Obj> typeParameters) {
+        this(kind, name, type, typeParameters, List.of());
+    }
+
+    protected GenericObj(int kind, String name, Struct type, List<Obj> typeParameters, List<Obj> enclosingTypeParameters) {
         super(kind, name, type);
-        this.typeParameters = validateTypeParameterDeclarations(typeParameters);
+        this.typeParameters = validateTypeParameterDeclarations(typeParameters, enclosingTypeParameters);
     }
 
     public final List<Obj> getTypeParameters() {
@@ -37,12 +41,18 @@ public abstract class GenericObj extends Obj {
 
     /** Validates type arguments and returns their substitution for this declaration's parameters. */
     public final Map<GenericParameterStruct, Struct> validateAndCreateSubstitution(List<Struct> arguments) {
+        return validateAndCreateSubstitution(arguments, Map.of());
+    }
+
+    /** Validates arguments in an enclosing generic context and returns the combined substitution. */
+    public final Map<GenericParameterStruct, Struct> validateAndCreateSubstitution(
+            List<Struct> arguments, Map<GenericParameterStruct, Struct> enclosingSubstitution) {
         if (arguments == null || arguments.size() != getTypeParameterCount()) {
             var actual = arguments == null ? 0 : arguments.size();
             throw new IllegalArgumentException("Generic declaration '" + getName() + "' expects " + getTypeParameterCount() + " type arguments, got " + actual);
         }
 
-        var substitutions = new LinkedHashMap<GenericParameterStruct, Struct>();
+        var substitutions = new LinkedHashMap<>(enclosingSubstitution);
         for (var index = 0; index < arguments.size(); index++) {
             var argument = arguments.get(index);
             var parameter = getTypeParameterType(index);
@@ -64,13 +74,14 @@ public abstract class GenericObj extends Obj {
         return Collections.unmodifiableMap(substitutions);
     }
 
-    private static List<Obj> validateTypeParameterDeclarations(List<Obj> parameters) {
+    private static List<Obj> validateTypeParameterDeclarations(List<Obj> parameters, List<Obj> enclosingParameters) {
         if (parameters == null || parameters.isEmpty())
             throw new IllegalArgumentException("A generic declaration must have at least one type parameter");
 
         var result = new ArrayList<Obj>(parameters.size());
         var names = new LinkedHashSet<>();
         var preceding = Collections.<GenericParameterStruct>newSetFromMap(new IdentityHashMap<>());
+        for (var parameter : enclosingParameters) preceding.add(requireGenericParameter(parameter));
 
         for (var parameter : parameters) {
             var parameterType = requireGenericParameter(parameter);

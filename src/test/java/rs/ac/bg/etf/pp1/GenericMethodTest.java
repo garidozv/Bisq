@@ -17,6 +17,8 @@ import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
+import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 
@@ -80,6 +82,124 @@ class GenericMethodTest extends CompilerTestBase {
         assertEquals(Struct.Class, bounded.getConstraint().getKind());
         assertFalse(method.getTypeParameterType(1).hasConstraint());
         assertEquals(2, method.getLevel());
+    }
+
+    @Test
+    void genericMemberMethodKeepsOwnerAndMethodParametersSeparate() throws Exception {
+        var result = analyze("""
+                program MemberGenerics
+                class Box<T> {
+                    {
+                        <U> T choose(T ownerValue, U methodValue) { return ownerValue; }
+                    }
+                }
+                { void main() {} }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var method = assertInstanceOf(GenericMethodObj.class, result.genericMethods().getFirst().obj);
+        var owner = assertInstanceOf(GenericTypeObj.class, method.getOwner());
+        assertSame(owner.getTypeParameterType(0), method.getType());
+        assertEquals(List.of("U"), method.getTypeParameters().stream().map(Obj::getName).toList());
+        assertSame(method.getTypeParameterType(0), method.getLocalSymbols().stream()
+                .filter(symbol -> symbol.getName().equals("methodValue"))
+                .findFirst().orElseThrow().getType());
+    }
+
+    @Test
+    void genericMemberMethodsAreSpecializedOnlyForCalls() throws Exception {
+        var result = analyze("""
+                program MemberGenericCalls
+                class Box<T> {
+                    {
+                        <U> T choose(T ownerValue, U methodValue) { return ownerValue; }
+                        <V> V unused(V value) { return value; }
+                    }
+                }
+                {
+                    void main() Box<int> box; int number; {
+                        box = new Box<int>();
+                        number = box.choose::<char>(3, 'a');
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var choose = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var unused = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var specialization = plan.getNeededSpecializations(choose).getFirst();
+
+        assertEquals(List.of(Tab.intType), specialization.getOwnerTypeArguments());
+        assertEquals(List.of(Tab.charType), specialization.getMethodTypeArguments());
+        assertTrue(plan.getNeededSpecializations(unused).isEmpty());
+    }
+
+    @Test
+    void nestedMemberMethodCallsCloseOwnerAndMethodArguments() throws Exception {
+        var result = analyze("""
+                program NestedMemberCalls
+                class Box<T> {
+                    {
+                        <U> U echo(U value) { return value; }
+                        <V> V forward(V value) { return this.echo::<V>(value); }
+                    }
+                }
+                {
+                    void main() Box<int> box; int value; {
+                        box = new Box<int>();
+                        value = box.forward::<int>(7);
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var echo = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var forward = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var plan = result.analyzer().createMonomorphizationPlan();
+
+        assertEquals(1, plan.getNeededSpecializations(forward).size());
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(echo).getFirst().getOwnerTypeArguments());
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(echo).getFirst().getMethodTypeArguments());
+    }
+
+    @Test
+    void memberMethodConstraintsAreCheckedAfterSubstitutingTheOwnerArguments() throws Exception {
+        var valid = analyze("""
+                program ValidMemberConstraint
+                class Holder<T> {}
+                class Box<T> {
+                    {
+                        <U : Holder<T>> U keep(U value) { return value; }
+                    }
+                }
+                {
+                    void main() Box<int> box; Holder<int> value; {
+                        box = new Box<int>();
+                        value = box.keep::<Holder<int>>(value);
+                    }
+                }
+                """);
+
+        assertTrue(valid.analyzer().passed());
+
+        var invalid = analyze("""
+                program InvalidMemberConstraint
+                class Holder<T> {}
+                class Box<T> {
+                    {
+                        <U : Holder<T>> U keep(U value) { return value; }
+                    }
+                }
+                {
+                    void main() Box<char> box; Holder<int> value; {
+                        box = new Box<char>();
+                        value = box.keep::<Holder<int>>(value);
+                    }
+                }
+                """);
+
+        assertFalse(invalid.analyzer().passed());
     }
 
     @Test

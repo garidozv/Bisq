@@ -23,12 +23,16 @@ public abstract class GenericSpecialization<TDeclaration extends GenericObj> {
     private final IdentityHashMap<SyntaxNode, GenericSpecialization<?>> targetSpecializations = new IdentityHashMap<>();
 
     protected GenericSpecialization(TDeclaration declaration, List<Struct> typeArguments) {
+        this(declaration, declaration.validateAndCreateSubstitution(typeArguments));
+    }
+
+    protected GenericSpecialization(TDeclaration declaration, Map<GenericParameterStruct, Struct> substitutionMap) {
         this.declaration = declaration;
-        for (var typeArgument : typeArguments) {
+        for (var typeArgument : substitutionMap.values()) {
             if (!GenericTypeUtils.isClosed(typeArgument))
                 throw new IllegalArgumentException("Generic specializations require closed type arguments");
         }
-        substitutionMap = declaration.validateAndCreateSubstitution(typeArguments);
+        this.substitutionMap = substitutionMap;
     }
 
     public final TDeclaration getDeclaration() {
@@ -66,7 +70,11 @@ public abstract class GenericSpecialization<TDeclaration extends GenericObj> {
     }
 
     protected final Obj copyObject(Obj original) {
-        var copy = new Obj(original.getKind(), original.getName(), resolveType(original.getType()), original.getAdr(), original.getLevel());
+        return copyObject(original, original.getName());
+    }
+
+    protected final Obj copyObject(Obj original, String name) {
+        var copy = new Obj(original.getKind(), name, resolveType(original.getType()), original.getAdr(), original.getLevel());
         copy.setFpPos(original.getFpPos());
         generatedSymbolsMap.put(original, copy);
 

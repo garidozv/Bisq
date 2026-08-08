@@ -29,6 +29,32 @@ public final class GenericTypeUtils {
     }
 
     /**
+     * Finds the application of a generic type declaration as it appears in a given type, its base classes,
+     * implemented interfaces, or generic-parameter constraint.
+     *
+     * <pre>{@code
+     * class Base<T> {
+     *     <U> U method(U value) { return value; }
+     * }
+     * class Derived<T> extends Base<T> {}
+     *
+     * Derived<int> receiver;
+     * receiver.method::<char>('a');
+     * }</pre>
+     *
+     * <p>The method is declared by {@code Base<T>}, but its receiver has type {@code Derived<int>}.
+     * Searching the receiver type for the {@code Base} declaration therefore returns {@code Base<int>}.</p>
+     *
+     * @param type The type from which to start the search, usually the receiver type of member call.
+     * @param declaration The generic type declaration whose application is being searched for.
+     * @return The matching generic type application, or {@code null} if it cannot be found.
+     */
+    public static GenericTypeApplicationStruct findGenericTypeApplication(Struct type, GenericTypeObj declaration) {
+        var visited = Collections.newSetFromMap(new IdentityHashMap<Struct, Boolean>());
+        return findGenericTypeApplication(type, declaration, visited);
+    }
+
+    /**
      * Returns all type parameters contained in the given type.
      * <p>
      * For example, for {@code Pair<List<T>, Pair<int, U>>} the result will be {@code {T, U}}.
@@ -139,5 +165,22 @@ public final class GenericTypeUtils {
         if (type != null && type.getKind() == Struct.Array) {
             collectContainedTypeParameters(type.getElemType(), result);
         }
+    }
+
+    private static GenericTypeApplicationStruct findGenericTypeApplication(
+            Struct type, GenericTypeObj declaration, Set<Struct> visited) {
+        if (type instanceof GenericParameterStruct parameter) type = parameter.getConstraint();
+        if (type == null || !visited.add(type)) return null;
+        if (type instanceof GenericTypeApplicationStruct application && application.getDeclaration() == declaration)
+            return application;
+
+        var baseApplication = findGenericTypeApplication(type.getElemType(), declaration, visited);
+        if (baseApplication != null) return baseApplication;
+
+        for (var implemented : type.getImplementedInterfaces()) {
+            var application = findGenericTypeApplication(implemented, declaration, visited);
+            if (application != null) return application;
+        }
+        return null;
     }
 }

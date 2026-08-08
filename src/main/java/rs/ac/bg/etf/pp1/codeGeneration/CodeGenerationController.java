@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import rs.ac.bg.etf.pp1.ast.ClassDecl;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
+import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.MethodDeclList_MethodDecl;
@@ -18,6 +19,7 @@ import rs.ac.bg.etf.pp1.ast.ProgramDeclList_VarDecl;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
+import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericTypeSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
@@ -69,16 +71,13 @@ public final class CodeGenerationController extends VisitorAdaptor {
         declarations.getProgramDeclList().accept(this);
 
         var interfaceDeclaration = declarations.getInterfaceDecl();
-        if (!(interfaceDeclaration.obj instanceof GenericTypeObj genericType)) {
+        var hasGenericMethods = !getDeclaredGenericMethods(interfaceDeclaration).isEmpty();
+        if (!(interfaceDeclaration.obj instanceof GenericTypeObj) && !hasGenericMethods) {
             interfaceDeclaration.traverseBottomUp(generator);
             return;
         }
 
-        for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
-            for (var method : getDeclaredMethods(interfaceDeclaration)) {
-                generator.generateMethod(method.getStatementList(), specialization.resolveObject(method.obj), specialization);
-            }
-        }
+        emitTypeMethods(interfaceDeclaration, interfaceDeclaration.obj);
     }
 
     @Override
@@ -86,16 +85,13 @@ public final class CodeGenerationController extends VisitorAdaptor {
         declarations.getProgramDeclList().accept(this);
 
         var classDeclaration = declarations.getClassDecl();
-        if (!(classDeclaration.obj instanceof GenericTypeObj genericType)) {
+        var hasGenericMethods = !getDeclaredGenericMethods(classDeclaration).isEmpty();
+        if (!(classDeclaration.obj instanceof GenericTypeObj) && !hasGenericMethods) {
             classDeclaration.traverseBottomUp(generator);
             return;
         }
 
-        for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
-            for (var method : getDeclaredMethods(classDeclaration)) {
-                generator.generateMethod(method.getStatementList(), specialization.resolveObject(method.obj), specialization);
-            }
-        }
+        emitTypeMethods(classDeclaration, classDeclaration.obj);
     }
 
     @Override
@@ -128,6 +124,51 @@ public final class CodeGenerationController extends VisitorAdaptor {
         return methods;
     }
 
+    private static ArrayList<GenericMethodDecl> getDeclaredGenericMethods(SyntaxNode declaration) {
+        var methods = new ArrayList<GenericMethodDecl>();
+        declaration.traverseTopDown(new VisitorAdaptor() {
+            @Override
+            public void visit(GenericMethodDecl method) {
+                methods.add(method);
+            }
+        });
+        return methods;
+    }
+
+    /**
+     * Emits methods for every concrete form of the given type.
+     * <p>Ordinary types are emitted once, while generic types are emitted once for each required type specialization.
+     *  Within each concrete type, generic methods are emitted once for each required method specialization.</p>
+     */
+    private void emitTypeMethods(SyntaxNode declaration, Obj typeObject) {
+        if (typeObject instanceof GenericTypeObj genericType) {
+            for (var ownerSpecialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
+                emitConcreteTypeMethods(declaration, ownerSpecialization);
+            }
+        } else {
+            emitConcreteTypeMethods(declaration, null);
+        }
+    }
+
+    private void emitConcreteTypeMethods(SyntaxNode declaration, GenericTypeSpecialization ownerSpecialization) {
+        // Regular methods are generated only once
+        for (var method : getDeclaredMethods(declaration)) {
+            var generatedMethod = ownerSpecialization == null ? method.obj : ownerSpecialization.resolveObject(method.obj);
+            generator.generateMethod(method.getStatementList(), generatedMethod, ownerSpecialization);
+        }
+
+        // Generic methods need to be generated for each one of their specializations
+        for (var method : getDeclaredGenericMethods(declaration)) {
+            var genericMethod = (GenericMethodObj)method.obj;
+            var specializations = ownerSpecialization == null
+                    ? monomorphizationPlan.getNeededSpecializations(genericMethod)
+                    : monomorphizationPlan.getNeededSpecializations(genericMethod, ownerSpecialization);
+            for (var specialization : specializations) {
+                generator.generateMethod(method.getStatementList(), specialization.getGeneratedObject(), specialization);
+            }
+        }
+    }
+
     /**
      * Configures concrete inheritance relationships and registers all regular classes and generic class specializations
      * with the generator before their definitions are generated.
@@ -144,17 +185,28 @@ public final class CodeGenerationController extends VisitorAdaptor {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
                     configureClassInheritance(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     configureImplementedInterface(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
+                    configureGenericMemberMethods(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     generator.registerClass(specialization.getGeneratedObject());
                 }
             }
             else {
                 configureClassInheritance(classDeclaration, classDeclaration.obj.getType(), null);
                 configureImplementedInterface(classDeclaration, classDeclaration.obj.getType(), null);
+                configureGenericMemberMethods(classDeclaration, classDeclaration.obj.getType(), null);
                 generator.registerClass(classDeclaration.obj);
             }
         }
         else if (declarations instanceof ProgramDeclList_InterfaceDecl interfaceDeclarations) {
             registerClasses(interfaceDeclarations.getProgramDeclList());
+            var declaration = interfaceDeclarations.getInterfaceDecl();
+            if (declaration.obj instanceof GenericTypeObj genericType) {
+                for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
+                    configureGenericMemberMethods(declaration, specialization.getGeneratedObject().getType(), specialization);
+                }
+            }
+            else {
+                configureGenericMemberMethods(declaration, declaration.obj.getType(), null);
+            }
         }
         else if (declarations instanceof ProgramDeclList_ConstDecl constDeclarations) {
             registerClasses(constDeclarations.getProgramDeclList());
@@ -181,9 +233,11 @@ public final class CodeGenerationController extends VisitorAdaptor {
         if (!(declaration instanceof ClassDecl_Derived derived) || declaration.obj.getType().getElemType() == null)
             return;
 
-        // Only handle class inheritance in a generic context
+        // Rebuild members when either side is specialized so inherited methods use the same generated objects as the base.
+        // For ordinary inheritance, rebuild only when the class inherits generic methods from the base
         var extendedType = declaration.obj.getType().getElemType();
-        if (specialization == null && !(extendedType instanceof GenericTypeApplicationStruct)) return;
+        var hasGenericMember = generatedType.getMembers().stream().anyMatch(GenericMethodObj.class::isInstance);
+        if (specialization == null && !(extendedType instanceof GenericTypeApplicationStruct) && !hasGenericMember) return;
 
         var generatedExtendedClass = extendedType;
         if (extendedType instanceof GenericTypeApplicationStruct) {
@@ -212,6 +266,43 @@ public final class CodeGenerationController extends VisitorAdaptor {
     }
 
     /**
+     * Replaces generic method declarations with the method objects for each required specialization.
+     *
+     * <pre>{@code
+     * class Processor {
+     *     {
+     *         <T> T process(T value) { return value; }
+     *     }
+     * }
+     *
+     * Processor processor;
+     * processor.process::<int>(1);
+     * processor.process::<char>('a');
+     * }</pre>
+     *
+     * <p>The member table initially contains one open {@code process<T>} declaration. This method removes that declaration
+     * and inserts the generated method objects for {@code process<int>} and {@code process<char>}, allowing both
+     * specializations to be stored in the owner's virtual table and the code to be generated for each of them.</p>
+     */
+    private void configureGenericMemberMethods(SyntaxNode declaration, Struct generatedType, GenericTypeSpecialization ownerSpecialization) {
+        var generatedMembers = new HashTableDataStructure();
+        generatedType.getMembers().stream()
+                .filter(member -> !(member instanceof GenericMethodObj))
+                .forEach(generatedMembers::insertKey);
+
+        for (var method : getDeclaredGenericMethods(declaration)) {
+            var genericMethod = (GenericMethodObj)method.obj;
+            var specializations = ownerSpecialization == null
+                    ? monomorphizationPlan.getNeededSpecializations(genericMethod)
+                    : monomorphizationPlan.getNeededSpecializations(genericMethod, ownerSpecialization);
+            for (var specialization : specializations) {
+                generatedMembers.insertKey(specialization.getGeneratedObject());
+            }
+        }
+        generatedType.setMembers(generatedMembers);
+    }
+
+    /**
      * Similar to {@link #configureClassInheritance(ClassDecl, Struct, GenericSpecialization)}, but handles interface implementation.
      * It replaces copied default method objects with the actual objects from the specialized interface.
      */
@@ -220,9 +311,12 @@ public final class CodeGenerationController extends VisitorAdaptor {
                 !(derived.getExtendedTypeName() instanceof ExtendedTypeName_Valid inheritance))
             return;
 
-        // Only handle interface inheritance in a generic context
+        // Rebuild members when either side is specialized so inherited default methods use the same generated objects as the interface.
+        // For an ordinary implementation, rebuild only when the class inherits generic methods from the interface
         var extendedType = inheritance.getType().struct;
-        if (extendedType.getKind() != Struct.Interface || (specialization == null && !(extendedType instanceof GenericTypeApplicationStruct)))
+        var hasGenericMember = generatedType.getMembers().stream().anyMatch(GenericMethodObj.class::isInstance);
+        if (extendedType.getKind() != Struct.Interface || (specialization == null &&
+                !(extendedType instanceof GenericTypeApplicationStruct) && !hasGenericMember))
             return;
 
         var generatedExtendedInterface = extendedType;

@@ -204,24 +204,6 @@ class GenericClassTest extends CompilerTestBase {
     }
 
     @Test
-    void rejectsMethodOwnedTypeParameters() throws Exception {
-        var analyzer = analyze("""
-                program UnsupportedGenericFeatures
-
-                class Box<T> {
-                    {
-                        <U> U convert(U value) { return value; }
-                    }
-                }
-                {
-                    void main() {}
-                }
-                """);
-
-        assertFalse(analyzer.passed());
-    }
-
-    @Test
     void supportsGenericClassInheritanceAndPlansBaseSpecializations() throws Exception {
         var analysis = analyzeProgram("""
                 program GenericInheritance

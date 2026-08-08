@@ -16,20 +16,28 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 public final class MonomorphizationPlan {
     private final IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> methodSpecializationsByDeclaration;
     private final IdentityHashMap<GenericTypeObj, List<GenericTypeSpecialization>> typeSpecializationsByDeclaration;
+    private final IdentityHashMap<GenericTypeSpecialization, IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>>> memberMethodSpecializationsByOwner;
     private final IdentityHashMap<SyntaxNode, GenericSpecialization<?>> rootTargets;
 
     public MonomorphizationPlan(
             IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>> methodSpecializationsByDeclaration,
             IdentityHashMap<GenericTypeObj, List<GenericTypeSpecialization>> typeSpecializationsByDeclaration,
+            IdentityHashMap<GenericTypeSpecialization, IdentityHashMap<GenericMethodObj, List<GenericMethodSpecialization>>> memberMethodSpecializationsByOwner,
             IdentityHashMap<SyntaxNode, GenericSpecialization<?>> rootTargets) {
         this.methodSpecializationsByDeclaration = methodSpecializationsByDeclaration;
         this.typeSpecializationsByDeclaration = typeSpecializationsByDeclaration;
+        this.memberMethodSpecializationsByOwner = memberMethodSpecializationsByOwner;
         this.rootTargets = rootTargets;
     }
 
     public List<GenericMethodSpecialization> getNeededSpecializations(GenericMethodObj declaration) {
         return methodSpecializationsByDeclaration.getOrDefault(declaration, List.of());
     }
+
+	public List<GenericMethodSpecialization> getNeededSpecializations(GenericMethodObj declaration, GenericTypeSpecialization owner) {
+		var methodsByDeclaration = memberMethodSpecializationsByOwner.get(owner);
+        return methodsByDeclaration == null ? List.of() : methodsByDeclaration.getOrDefault(declaration, List.of());
+	}
 
     public List<GenericTypeSpecialization> getNeededSpecializations(GenericTypeObj declaration) {
         return typeSpecializationsByDeclaration.getOrDefault(declaration, List.of());

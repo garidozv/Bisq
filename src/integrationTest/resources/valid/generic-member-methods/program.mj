@@ -1,0 +1,89 @@
+program GenericMemberMethods
+
+class LeftBase {
+    int value;
+}
+
+class RightBase {
+    int value;
+}
+
+class Left extends LeftBase {}
+class Right extends RightBase {}
+
+class PairBox<T : LeftBase, U : RightBase> {
+    {
+        <V : LeftBase, W : RightBase> T choose(T ownerValue, V leftValue, W rightValue) {
+            ownerValue.value = ownerValue.value + leftValue.value + rightValue.value;
+            return ownerValue;
+        }
+
+        <V> V echo(V value) {
+            return value;
+        }
+
+        <V> V forward(V value) {
+            return this.echo::<V>(value);
+        }
+
+        int callFromOrdinaryMethod(int value) {
+            return this.echo::<int>(value);
+        }
+
+        <V> V unused(V value) {
+            return value;
+        }
+    }
+}
+
+class Ordinary {
+    {
+        <T> T echo(T value) {
+            return value;
+        }
+    }
+}
+
+class DerivedOrdinary extends Ordinary {}
+
+class DerivedPair<T : LeftBase, U : RightBase> extends PairBox<T, U> {}
+
+interface EchoProvider<T> {
+    <U> T interfaceEcho(T value, U ignored) {
+        return value;
+    }
+}
+
+class Provider extends EchoProvider<char> {}
+{
+    void main() PairBox<Left, Right> box; Ordinary ordinary;
+                DerivedOrdinary derivedOrdinary; DerivedPair<Left, Right> derivedPair;
+                Provider provider; Left owner; Left left; Right right; int number; char letter; {
+        box = new PairBox<Left, Right>();
+        ordinary = new Ordinary();
+        derivedOrdinary = new DerivedOrdinary();
+        derivedPair = new DerivedPair<Left, Right>();
+        provider = new Provider();
+        owner = new Left();
+        left = new Left();
+        right = new Right();
+        owner.value = 1;
+        left.value = 2;
+        right.value = 3;
+
+        owner = box.choose::<Left, Right>(owner, left, right);
+        number = box.echo::<int>(7);
+        letter = box.echo::<char>('A');
+
+        print(owner.value);
+        print(number);
+        print(letter);
+        print(ordinary.echo::<int>(9));
+        print(box.forward::<int>(8));
+        print(derivedOrdinary.echo::<int>(4));
+        print(derivedPair.echo::<int>(5));
+        print(box.callFromOrdinaryMethod(2));
+        print(provider.interfaceEcho::<int>('B', 0));
+        print(eol);
+    }
+}

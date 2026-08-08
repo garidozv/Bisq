@@ -233,6 +233,22 @@ class GenericsTypeSystemTest {
     }
 
     @Test
+    void appliedTypesPreserveGenericMethodDeclarations() {
+        var ownerParameter = TabUtils.createGenericParameter("T");
+        var methodParameter = TabUtils.createGenericParameter("U");
+        var box = TabUtils.createGenericType("Box", Struct.Class, List.of(ownerParameter));
+        var method = TabUtils.createGenericMethod("convert", methodParameter.getType(), List.of(methodParameter), box, List.of(ownerParameter));
+        var members = new HashTableDataStructure();
+        members.insertKey(method);
+        box.getType().setMembers(members);
+
+        var application = box.applyArguments(List.of(Tab.intType));
+
+        assertSame(method, application.findMember("convert"));
+        assertSame(method, application.getMembers().iterator().next());
+    }
+
+    @Test
     void genericSymbolsPreserveDeclarationMetadataAndTabInsertionSemantics() {
         var first = TabUtils.createGenericParameter("T");
         var second = TabUtils.createGenericParameter("U");

@@ -61,6 +61,16 @@ public final class GenericTypeApplicationStruct extends Struct {
      */
     public Obj findMember(String name) {
         var member = declaration.getType().getMembersTable().searchKey(name);
+        return resolveMember(member);
+    }
+
+    /**
+     * Returns a declaration member as seen through this type application.
+     * Generic method declarations are preserved because they cannot be fully resolved until their call site,
+     * where their method type arguments become known. Creating a partially resolved method object is not useful.
+     */
+    public Obj resolveMember(Obj member) {
+        if (member instanceof GenericMethodObj) return member;
         return GenericTypeUtils.substituteObjectTypes(member, substitution);
     }
 
@@ -70,7 +80,7 @@ public final class GenericTypeApplicationStruct extends Struct {
     @Override
     public Collection<Obj> getMembers() {
         return declaration.getType().getMembers().stream()
-                .map(member -> GenericTypeUtils.substituteObjectTypes(member, substitution))
+                .map(this::resolveMember)
                 .toList();
     }
 

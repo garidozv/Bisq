@@ -183,16 +183,12 @@ public final class CodeGenerationController extends VisitorAdaptor {
             var classDeclaration = classDeclarations.getClassDecl();
             if (classDeclaration.obj instanceof GenericTypeObj genericType) {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
-                    configureClassInheritance(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
-                    configureImplementedInterface(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
-                    configureGenericMemberMethods(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
+                    configureTypeMembers(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     generator.registerClass(specialization.getGeneratedObject());
                 }
             }
             else {
-                configureClassInheritance(classDeclaration, classDeclaration.obj.getType(), null);
-                configureImplementedInterface(classDeclaration, classDeclaration.obj.getType(), null);
-                configureGenericMemberMethods(classDeclaration, classDeclaration.obj.getType(), null);
+                configureTypeMembers(classDeclaration, classDeclaration.obj.getType(), null);
                 generator.registerClass(classDeclaration.obj);
             }
         }
@@ -201,11 +197,11 @@ public final class CodeGenerationController extends VisitorAdaptor {
             var declaration = interfaceDeclarations.getInterfaceDecl();
             if (declaration.obj instanceof GenericTypeObj genericType) {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
-                    configureGenericMemberMethods(declaration, specialization.getGeneratedObject().getType(), specialization);
+                    configureTypeMembers(declaration, specialization.getGeneratedObject().getType(), specialization);
                 }
             }
             else {
-                configureGenericMemberMethods(declaration, declaration.obj.getType(), null);
+                configureTypeMembers(declaration, declaration.obj.getType(), null);
             }
         }
         else if (declarations instanceof ProgramDeclList_ConstDecl constDeclarations) {
@@ -214,6 +210,18 @@ public final class CodeGenerationController extends VisitorAdaptor {
         else if (declarations instanceof ProgramDeclList_VarDecl varDeclarations) {
             registerClasses(varDeclarations.getProgramDeclList());
         }
+    }
+
+    private void configureTypeMembers(SyntaxNode declaration, Struct generatedType, GenericTypeSpecialization specialization) {
+        var generatedMembers = new HashTableDataStructure();
+        generatedType.getMembers().forEach(generatedMembers::insertKey);
+
+        if (declaration instanceof ClassDecl classDeclaration) {
+            configureClassInheritance(classDeclaration, generatedType, specialization, generatedMembers);
+            configureImplementedInterface(classDeclaration, generatedType, specialization, generatedMembers);
+        }
+        configureGenericMemberMethods(declaration, generatedType, specialization, generatedMembers);
+        generatedType.setMembers(generatedMembers);
     }
 
     /**
@@ -229,7 +237,8 @@ public final class CodeGenerationController extends VisitorAdaptor {
      * assigned to those objects during code generation. Fields retain their specialized derived objects because their
      * addresses are fixed layout offsets and do not change during code generation.</p>
      */
-    private void configureClassInheritance(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
+    private void configureClassInheritance(ClassDecl declaration, Struct generatedType,
+            GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
         if (!(declaration instanceof ClassDecl_Derived derived) || declaration.obj.getType().getElemType() == null)
             return;
 
@@ -245,14 +254,13 @@ public final class CodeGenerationController extends VisitorAdaptor {
             generatedExtendedClass = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
         }
 
-        // Rebuild the members - take the existing fields from the derived specialized Obj and methods from the base specialized Obj
-        var generatedMembers = new HashTableDataStructure();
-        generatedType.getMembers().stream()
-                .filter(member -> member.getKind() != Obj.Meth)
-                .forEach(generatedMembers::insertKey);
+        // Replace inherited method copies with the actual method objects from the generated base
         generatedExtendedClass.getMembers().stream()
                 .filter(member -> member.getKind() == Obj.Meth)
-                .forEach(generatedMembers::insertKey);
+                .forEach(member -> {
+                    generatedMembers.deleteKey(member.getName());
+                    generatedMembers.insertKey(member);
+                });
 
         // Add methods from the derived specialized Obj and handle overriding while doing that
         for (var method : getDeclaredMethods(declaration)) {
@@ -262,7 +270,6 @@ public final class CodeGenerationController extends VisitorAdaptor {
         }
 
         generatedType.setElementType(generatedExtendedClass);
-        generatedType.setMembers(generatedMembers);
     }
 
     /**
@@ -284,11 +291,11 @@ public final class CodeGenerationController extends VisitorAdaptor {
      * and inserts the generated method objects for {@code process<int>} and {@code process<char>}, allowing both
      * specializations to be stored in the owner's virtual table and the code to be generated for each of them.</p>
      */
-    private void configureGenericMemberMethods(SyntaxNode declaration, Struct generatedType, GenericTypeSpecialization ownerSpecialization) {
-        var generatedMembers = new HashTableDataStructure();
+    private void configureGenericMemberMethods(SyntaxNode declaration, Struct generatedType,
+                                               GenericTypeSpecialization ownerSpecialization, HashTableDataStructure generatedMembers) {
         generatedType.getMembers().stream()
-                .filter(member -> !(member instanceof GenericMethodObj))
-                .forEach(generatedMembers::insertKey);
+                .filter(GenericMethodObj.class::isInstance)
+                .forEach(member -> generatedMembers.deleteKey(member.getName()));
 
         for (var method : getDeclaredGenericMethods(declaration)) {
             var genericMethod = (GenericMethodObj)method.obj;
@@ -299,14 +306,15 @@ public final class CodeGenerationController extends VisitorAdaptor {
                 generatedMembers.insertKey(specialization.getGeneratedObject());
             }
         }
-        generatedType.setMembers(generatedMembers);
     }
 
     /**
-     * Similar to {@link #configureClassInheritance(ClassDecl, Struct, GenericSpecialization)}, but handles interface implementation.
+     * Similar to {@link #configureClassInheritance(ClassDecl, Struct, GenericSpecialization, HashTableDataStructure)},
+     * but handles interface implementation.
      * It replaces copied default method objects with the actual objects from the specialized interface.
      */
-    private void configureImplementedInterface(ClassDecl declaration, Struct generatedType, GenericSpecialization<?> specialization) {
+    private void configureImplementedInterface(ClassDecl declaration, Struct generatedType,
+            GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
         if (!(declaration instanceof ClassDecl_Derived derived) ||
                 !(derived.getExtendedTypeName() instanceof ExtendedTypeName_Valid inheritance))
             return;
@@ -329,8 +337,6 @@ public final class CodeGenerationController extends VisitorAdaptor {
         var declaredMethodNames = getDeclaredMethods(declaration).stream()
                 .map(method -> method.obj.getName())
                 .collect(Collectors.toSet());
-        var generatedMembers = new HashTableDataStructure();
-        generatedType.getMembers().forEach(generatedMembers::insertKey);
         generatedExtendedInterface.getMembers().stream()
                 .filter(method ->
                         method.getKind() == Obj.Meth &&
@@ -340,6 +346,5 @@ public final class CodeGenerationController extends VisitorAdaptor {
                     generatedMembers.deleteKey(method.getName());
                     generatedMembers.insertKey(method);
                 });
-        generatedType.setMembers(generatedMembers);
     }
 }

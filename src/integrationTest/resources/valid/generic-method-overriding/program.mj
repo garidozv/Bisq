@@ -1,0 +1,79 @@
+program GenericMethodOverriding
+
+class Left {}
+class Right {}
+class Pair<A, B> {}
+
+class Base<A : Left, B : Right> {
+    {
+        <T : Pair<A, B>, U : Right> int value(T first, U second) {
+            return 1;
+        }
+    }
+}
+
+class Derived<A : Left, B : Right> extends Base<A, B> {
+    {
+        <T : Pair<A, B>, U : Right> int value(T first, U second) {
+            return 2;
+        }
+    }
+}
+
+class Leaf extends Derived<Left, Right> {
+    {
+        <T : Pair<Left, Right>, U : Right> int value(T first, U second) {
+            return 3;
+        }
+    }
+}
+
+interface Provider<A : Left, B : Right> {
+    <T : Pair<A, B>, U : Right> int kind(T first, U second) {
+        return 4;
+    }
+}
+
+class DefaultProvider extends Provider<Left, Right> {}
+
+class ProviderBase extends Provider<Left, Right> {
+    {
+        <T : Pair<Left, Right>, U : Right> int kind(T first, U second) {
+            return 5;
+        }
+    }
+}
+
+class ProviderImplementation extends ProviderBase {
+    {
+        <T : Pair<Left, Right>, U : Right> int kind(T first, U second) {
+            return 6;
+        }
+    }
+}
+{
+    void main() Base<Left, Right> base; Provider<Left, Right> provider;
+                Pair<Left, Right> first; Right second; {
+        first = new Pair<Left, Right>();
+        second = new Right();
+
+        base = new Base<Left, Right>();
+        print(base.value::<Pair<Left, Right>, Right>(first, second));
+
+        base = new Derived<Left, Right>();
+        print(base.value::<Pair<Left, Right>, Right>(first, second));
+
+        base = new Leaf();
+        print(base.value::<Pair<Left, Right>, Right>(first, second));
+
+        provider = new DefaultProvider();
+        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+
+        provider = new ProviderBase();
+        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+
+        provider = new ProviderImplementation();
+        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+        print(eol);
+    }
+}

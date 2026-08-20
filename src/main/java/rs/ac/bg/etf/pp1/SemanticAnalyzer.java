@@ -3,6 +3,7 @@ package rs.ac.bg.etf.pp1;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.UnaryOperator;
@@ -176,30 +177,94 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         return true;
     }
 
-	// Checks if the signatures (excludes return type) of passed methods match
-	private static boolean hasMatchingSignature(Obj firstMethod, Obj secondMethod) {
-		if (firstMethod.getLevel() != secondMethod.getLevel()) {
+	private static boolean hasMatchingFormalParameters(Obj firstMethod, Obj secondMethod) {
+		return hasMatchingFormalParameters(firstMethod, secondMethod, type -> type);
+	}
+
+	private static boolean hasMatchingFormalParameters(Obj inheritedMethod, Obj overridingMethod,
+			UnaryOperator<Struct> resolveInheritedType) {
+		if (inheritedMethod.getLevel() != overridingMethod.getLevel()) {
 			return false;
 		}
 
-		var explicitParamCnt = firstMethod.getLevel() - 1;
-		var firstMethodParams = firstMethod.getLocalSymbols().stream()
+		var explicitParameterCount = inheritedMethod.getLevel() - 1;
+		var inheritedParameters = inheritedMethod.getLocalSymbols().stream()
 				.skip(1) // Skip this param
-				.limit(explicitParamCnt)
-				.toArray(Obj[]::new);
-
-		var secondMethodParams = secondMethod.getLocalSymbols().stream()
+				.limit(explicitParameterCount)
+				.iterator();
+		var overridingParameters = overridingMethod.getLocalSymbols().stream()
 				.skip(1) // Skip this param
-				.limit(explicitParamCnt)
-				.toArray(Obj[]::new);
+				.limit(explicitParameterCount)
+				.iterator();
 
-		for (int i = 0; i < explicitParamCnt; i++) {
-			if (!TabUtils.equals(firstMethodParams[i].getType(), secondMethodParams[i].getType())) {
+		for (var index = 0; index < explicitParameterCount; index++) {
+			var inheritedType = resolveInheritedType.apply(inheritedParameters.next().getType());
+			var overridingType = overridingParameters.next().getType();
+			if (!TabUtils.equals(inheritedType, overridingType)) {
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	private static boolean hasMatchingGenericOverride(GenericMethodObj inheritedMethod,
+                                                      GenericMethodObj overridingMethod, Struct overridingType) {
+		if (inheritedMethod.getTypeParameterCount() != overridingMethod.getTypeParameterCount())
+			return false;
+
+		var inheritedTypeSubstitution = createInheritedMethodSubstitution(inheritedMethod, overridingMethod, overridingType);
+		if (!hasMatchingGenericParameters(inheritedMethod, overridingMethod, inheritedTypeSubstitution)) {
+			return false;
+		}
+
+		UnaryOperator<Struct> resolveInheritedType = type -> GenericTypeUtils.substituteType(type, inheritedTypeSubstitution);
+		return hasMatchingFormalParameters(inheritedMethod, overridingMethod, resolveInheritedType) &&
+				TabUtils.equals(resolveInheritedType.apply(inheritedMethod.getType()), overridingMethod.getType());
+	}
+
+    /**
+     * Maps inherited method and its owner's type parameters into the overriding declaration's type context
+     */
+	private static Map<GenericParameterStruct, Struct> createInheritedMethodSubstitution(
+            GenericMethodObj inheritedMethod, GenericMethodObj overridingMethod, Struct overridingType) {
+		var substitution = new LinkedHashMap<GenericParameterStruct, Struct>();
+		if (inheritedMethod.getOwner() instanceof GenericTypeObj inheritedOwner) {
+			var inheritedOwnerApplication = GenericTypeUtils.findGenericTypeApplication(overridingType, inheritedOwner);
+			substitution.putAll(inheritedOwnerApplication.getSubstitution());
+		}
+
+		for (var index = 0; index < inheritedMethod.getTypeParameterCount(); index++) {
+			substitution.put(inheritedMethod.getTypeParameterType(index), overridingMethod.getTypeParameterType(index));
+		}
+		return substitution;
+	}
+
+	private static boolean hasMatchingGenericParameters(GenericMethodObj inheritedMethod,
+                                                        GenericMethodObj overridingMethod,
+                                                        Map<GenericParameterStruct, Struct> inheritedTypeSubstitution) {
+		// All parameters and their constraints need to match after applying the substitutions
+		for (var index = 0; index < inheritedMethod.getTypeParameterCount(); index++) {
+			var inheritedParameter = inheritedMethod.getTypeParameterType(index);
+			var overridingParameter = overridingMethod.getTypeParameterType(index);
+			var inheritedConstraint = GenericTypeUtils.substituteType(inheritedParameter.getConstraint(), inheritedTypeSubstitution);
+			if (!TabUtils.equals(inheritedConstraint, overridingParameter.getConstraint()) ||
+					inheritedParameter.isUsedAsArrayElementType() != overridingParameter.isUsedAsArrayElementType()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean hasMatchingOverride(Obj inheritedMethod, Obj overridingMethod, Struct overridingType) {
+		if (inheritedMethod instanceof GenericMethodObj inheritedGeneric && overridingMethod instanceof GenericMethodObj overridingGeneric) {
+			return hasMatchingGenericOverride(inheritedGeneric, overridingGeneric, overridingType);
+		}
+		if (inheritedMethod instanceof GenericMethodObj || overridingMethod instanceof GenericMethodObj) {
+            return false;
+        }
+
+		return hasMatchingFormalParameters(inheritedMethod, overridingMethod) && TabUtils.equals(inheritedMethod.getType(), overridingMethod.getType());
 	}
 
 	private static boolean validatePrintStatementExpr(Struct exprStruct) {
@@ -488,6 +553,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 	@Override
 	public void visit(GenericMethodDecl methodDecl) {
 		methodDecl.obj = completeCurrentMethod(methodDecl, false);
+		if (currentClass != null && methodDecl.obj instanceof GenericMethodObj genericMethod) {
+			monomorphizationPlanner.registerClassGenericMethod(genericMethod);
+		}
 		popGenericParameterScope();
 	}
 
@@ -659,6 +727,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 			return;
 		}
 
+		// Keep class parameters open while translating inherited method types
+		var overridingType = currentClass instanceof GenericTypeObj genericClass
+				? GenericTypeUtils.createOpenApplication(genericClass)
+				: currentClass.getType();
+
 		if (currentClass.getType().getElemType() != null) {
 			// Check if base methods were overridden correctly, and add the ones that weren't overridden
 			var baseClassMethods = currentClass.getType().getElemType().getMembers().stream()
@@ -671,14 +744,14 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 					// Not overridden, add the method object to the current class
 					Tab.currentScope.addToLocals(baseMethod);
 				}
-				else if (!hasMatchingSignature(baseMethod, method) || !TabUtils.equals(baseMethod.getType(), method.getType())) {
+				else if (!hasMatchingOverride(baseMethod, method, overridingType)) {
 					report_error(String.format("Signature of overridden method '%s' must not be changed", baseMethod.getName()), classDecl);
 				}
 			}
 		}
 
 		// Check if interface has been implemented correctly, and add non-overriden concrete methods
-		for (Struct interfaceSruct : currentClass.getType().getImplementedInterfaces()) {
+		for (var interfaceSruct : currentClass.getType().getImplementedInterfaces()) {
 			for (var baseMethod: interfaceSruct.getMembers()) {
 				var method = Tab.currentScope.findSymbol(baseMethod.getName());
 
@@ -693,7 +766,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 						Tab.currentScope.addToLocals(baseMethod);
 					}
 				}
-				else if (!hasMatchingSignature(method, baseMethod) || !TabUtils.equals(baseMethod.getType(), method.getType())) {
+				else if (!hasMatchingOverride(baseMethod, method, overridingType)) {
                     report_error(String.format("Signature of overridden method '%s' must not be changed", baseMethod.getName()), classDecl);
 				}
 			}

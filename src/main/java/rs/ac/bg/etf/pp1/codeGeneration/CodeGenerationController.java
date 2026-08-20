@@ -257,16 +257,12 @@ public final class CodeGenerationController extends VisitorAdaptor {
         // Replace inherited method copies with the actual method objects from the generated base
         generatedExtendedClass.getMembers().stream()
                 .filter(member -> member.getKind() == Obj.Meth)
-                .forEach(member -> {
-                    generatedMembers.deleteKey(member.getName());
-                    generatedMembers.insertKey(member);
-                });
+                .forEach(member -> replaceMember(generatedMembers, member));
 
         // Add methods from the derived specialized Obj and handle overriding while doing that
         for (var method : getDeclaredMethods(declaration)) {
             var generatedMethod = specialization == null ? method.obj : specialization.resolveObject(method.obj);
-            generatedMembers.deleteKey(generatedMethod.getName());
-            generatedMembers.insertKey(generatedMethod);
+            replaceMember(generatedMembers, generatedMethod);
         }
 
         generatedType.setElementType(generatedExtendedClass);
@@ -303,7 +299,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
                     ? monomorphizationPlan.getNeededSpecializations(genericMethod)
                     : monomorphizationPlan.getNeededSpecializations(genericMethod, ownerSpecialization);
             for (var specialization : specializations) {
-                generatedMembers.insertKey(specialization.getGeneratedObject());
+                replaceMember(generatedMembers, specialization.getGeneratedObject());
             }
         }
     }
@@ -342,9 +338,11 @@ public final class CodeGenerationController extends VisitorAdaptor {
                         method.getKind() == Obj.Meth &&
                         method.getFpPos() != MethodTypes.LOCAL_UNIMPLEMENTED.value &&
                         !declaredMethodNames.contains(method.getName()))
-                .forEach(method -> {
-                    generatedMembers.deleteKey(method.getName());
-                    generatedMembers.insertKey(method);
-                });
+                .forEach(method -> replaceMember(generatedMembers, method));
+    }
+
+    private static void replaceMember(HashTableDataStructure members, Obj member) {
+        members.deleteKey(member.getName());
+        members.insertKey(member);
     }
 }

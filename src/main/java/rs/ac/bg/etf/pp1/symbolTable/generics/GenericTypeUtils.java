@@ -3,6 +3,7 @@ package rs.ac.bg.etf.pp1.symbolTable.generics;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -149,6 +150,20 @@ public final class GenericTypeUtils {
         if (type != null && type.getKind() == Struct.Array)
             return 31 * Struct.Array + typeHashCode(type.getElemType());
         return type == null ? 0 : type.getKind();
+    }
+
+    public static boolean typeListsEqual(List<Struct> first, List<Struct> second) {
+        if (first.size() != second.size()) return false;
+        for (var index = 0; index < first.size(); index++) {
+            if (!TabUtils.equals(first.get(index), second.get(index))) return false;
+        }
+        return true;
+    }
+
+    public static int typeListHashCode(List<Struct> types) {
+        var result = 1;
+        for (var type : types) result = 31 * result + typeHashCode(type);
+        return result;
     }
 
     private static void collectContainedTypeParameters(Struct type, Set<GenericParameterStruct> result) {

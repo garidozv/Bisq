@@ -164,6 +164,200 @@ class GenericMethodTest extends CompilerTestBase {
     }
 
     @Test
+    void genericMethodOverridesCompareOwnerAndMethodParametersStructurally() throws Exception {
+        var valid = analyze("""
+                program GenericOverrides
+                class Left {}
+                class Right {}
+                class Pair<A, B> {}
+                class Base<T : Left, U : Right> {
+                    {
+                        <V : Pair<T, U>, W : Right> V choose(V first, W second) { return first; }
+                    }
+                }
+                class Derived<T : Left, U : Right> extends Base<T, U> {
+                    {
+                        <X : Pair<T, U>, Y : Right> X choose(X first, Y second) { return first; }
+                    }
+                }
+                { void main() {} }
+                """);
+
+        assertTrue(valid.analyzer().passed());
+
+        var invalidConstraint = analyze("""
+                program InvalidGenericOverride
+                class Left {}
+                class Right {}
+                class Pair<A, B> {}
+                class Base<T : Left, U : Right> {
+                    {
+                        <V : Pair<T, U>, W : Right> V choose(V first, W second) { return first; }
+                    }
+                }
+                class Derived<T : Left, U : Right> extends Base<T, U> {
+                    {
+                        <X : Pair<T, U>, Y> X choose(X first, Y second) { return first; }
+                    }
+                }
+                { void main() {} }
+                """);
+
+        assertFalse(invalidConstraint.analyzer().passed());
+    }
+
+    @Test
+    void genericMethodOverridesMustPreserveTheirGenericShapeAndTypeRequirements() throws Exception {
+        assertFalse(analyze("""
+                program DifferentParameterCount
+                class Base {
+                    { <T, U> T select(T first, U second) { return first; } }
+                }
+                class Derived extends Base {
+                    { <T> T select(T first, T second) { return first; } }
+                }
+                { void main() {} }
+                """).analyzer().passed());
+
+        assertFalse(analyze("""
+                program GenericToOrdinary
+                class Base {
+                    { <T> T identity(T value) { return value; } }
+                }
+                class Derived extends Base {
+                    { int identity(int value) { return value; } }
+                }
+                { void main() {} }
+                """).analyzer().passed());
+
+        assertFalse(analyze("""
+                program DifferentArrayRequirement
+                class Base {
+                    {
+                        <T> T copy(T value) T values[]; {
+                            values = new T[1];
+                            return value;
+                        }
+                    }
+                }
+                class Derived extends Base {
+                    { <U> U copy(U value) { return value; } }
+                }
+                { void main() {} }
+                """).analyzer().passed());
+    }
+
+    @Test
+    void overridingGenericMethodsReuseVirtualNamesAndAreSpecializedForDerivedOwners() throws Exception {
+        var result = analyze("""
+                program GenericOverridePlan
+                class Base<T> {
+                    {
+                        <U> int value(T ownerValue, U methodValue) { return 1; }
+                    }
+                }
+                class Derived<T> extends Base<T[]> {
+                    {
+                        <V> int value(T[] ownerValue, V methodValue) { return 2; }
+                    }
+                }
+                {
+                    void main() Base<int[]> value; int ownerValues[]; {
+                        value = new Derived<int>();
+                        print(value.value::<char>(ownerValues, 'a'));
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var baseMethod = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var overridingMethod = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var baseSpecialization = plan.getNeededSpecializations(baseMethod).getFirst();
+        var overridingSpecialization = plan.getNeededSpecializations(overridingMethod).getFirst();
+
+        assertEquals(List.of(GenericTypeUtils.createArrayType(Tab.intType)), baseSpecialization.getOwnerTypeArguments());
+        assertEquals(List.of(Tab.intType), overridingSpecialization.getOwnerTypeArguments());
+        assertEquals(List.of(Tab.charType), overridingSpecialization.getMethodTypeArguments());
+        assertEquals(baseSpecialization.getGeneratedObject().getName(), overridingSpecialization.getGeneratedObject().getName());
+    }
+
+    @Test
+    void virtualCompletionIgnoresUnrelatedMethodsWithTheSameName() throws Exception {
+        var result = analyze("""
+                program UnrelatedGenericMethods
+                class Base {
+                    { <T> int value(T argument) { return 1; } }
+                }
+                class Derived extends Base {
+                    { <T> int value(T argument) { return 2; } }
+                }
+                class Unrelated {
+                    { <T> int value(T argument) { return 3; } }
+                }
+                {
+                    void main() Base object; {
+                        object = new Derived();
+                        print(object.value::<int>(1));
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var baseMethod = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var derivedMethod = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var unrelatedMethod = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(2).obj);
+        var plan = result.analyzer().createMonomorphizationPlan();
+
+        var baseSpecialization = plan.getNeededSpecializations(baseMethod).getFirst();
+        var derivedSpecialization = plan.getNeededSpecializations(derivedMethod).getFirst();
+        assertEquals(baseSpecialization.getGeneratedObject().getName(), derivedSpecialization.getGeneratedObject().getName());
+        assertTrue(plan.getNeededSpecializations(unrelatedMethod).isEmpty());
+    }
+
+    @Test
+    void baseDemandReachesTransitiveOverridesAndProcessesTheirNestedUses() throws Exception {
+        var result = analyze("""
+                program TransitiveGenericOverrides
+                class Base {
+                    { <T> int value(T argument) { return 1; } }
+                }
+                class Middle extends Base {
+                    {
+                        <T> int helper(T argument) { return 2; }
+                        <T> int value(T argument) { return this.helper::<T>(argument); }
+                    }
+                }
+                class Leaf extends Middle {
+                    {
+                        <T> int helper(T argument) { return 3; }
+                        <T> int value(T argument) { return this.helper::<T>(argument); }
+                    }
+                }
+                {
+                    void main() Base object; {
+                        object = new Leaf();
+                        print(object.value::<int>(1));
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var baseValue = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var middleHelper = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var middleValue = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(2).obj);
+        var leafHelper = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(3).obj);
+        var leafValue = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(4).obj);
+        var plan = result.analyzer().createMonomorphizationPlan();
+
+        var generatedName = plan.getNeededSpecializations(baseValue).getFirst().getGeneratedObject().getName();
+        assertEquals(generatedName, plan.getNeededSpecializations(middleValue).getFirst().getGeneratedObject().getName());
+        assertEquals(generatedName, plan.getNeededSpecializations(leafValue).getFirst().getGeneratedObject().getName());
+        assertEquals(1, plan.getNeededSpecializations(middleHelper).size());
+        assertEquals(1, plan.getNeededSpecializations(leafHelper).size());
+    }
+
+    @Test
     void memberMethodConstraintsAreCheckedAfterSubstitutingTheOwnerArguments() throws Exception {
         var valid = analyze("""
                 program ValidMemberConstraint

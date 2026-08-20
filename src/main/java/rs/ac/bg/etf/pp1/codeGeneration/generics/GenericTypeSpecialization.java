@@ -1,5 +1,6 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
@@ -31,5 +32,15 @@ public final class GenericTypeSpecialization extends GenericSpecialization<Gener
         generatedStruct.setMembers(generatedMembers);
 
         setGeneratedObject(new Obj(Obj.Type, declaration.getName(), generatedStruct, declaration.getAdr(), declaration.getLevel()));
+    }
+
+    /** Returns the concrete arguments applied to this specialization's declaration. */
+    public List<Struct> getTypeArguments() {
+        var declaration = getDeclaration();
+        var arguments = new ArrayList<Struct>(declaration.getTypeParameterCount());
+        for (var index = 0; index < declaration.getTypeParameterCount(); index++) {
+            arguments.add(resolveType(declaration.getTypeParameterType(index)));
+        }
+        return arguments;
     }
 }

@@ -1,26 +1,21 @@
 package rs.ac.bg.etf.pp1;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
-
 import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
 import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
-import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class GenericMethodTest extends CompilerTestBase {
     @Test
@@ -722,5 +717,6 @@ class GenericMethodTest extends CompilerTestBase {
         return new GenericMethodAnalysisResult(analysis.analyzer(), List.copyOf(genericMethods));
     }
 
-    private record GenericMethodAnalysisResult(SemanticAnalyzer analyzer, List<GenericMethodDecl> genericMethods) {}
+    private record GenericMethodAnalysisResult(SemanticAnalyzer analyzer, List<GenericMethodDecl> genericMethods) {
+    }
 }

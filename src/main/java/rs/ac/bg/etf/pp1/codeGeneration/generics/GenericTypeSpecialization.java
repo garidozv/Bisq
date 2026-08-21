@@ -1,13 +1,13 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Represents one fully closed class or interface definition produced from a generic type declaration.
@@ -34,7 +34,9 @@ public final class GenericTypeSpecialization extends GenericSpecialization<Gener
         setGeneratedObject(new Obj(Obj.Type, declaration.getName(), generatedStruct, declaration.getAdr(), declaration.getLevel()));
     }
 
-    /** Returns the concrete arguments applied to this specialization's declaration. */
+    /**
+     * Returns the concrete arguments applied to this specialization's declaration.
+     */
     public List<Struct> getTypeArguments() {
         var declaration = getDeclaration();
         var arguments = new ArrayList<Struct>(declaration.getTypeParameterCount());

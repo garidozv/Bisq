@@ -1,20 +1,16 @@
 package rs.ac.bg.etf.pp1.symbolTable.generics;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.etf.pp1.symboltable.Tab;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
 
+import java.util.*;
+
 public final class GenericTypeUtils {
-    private GenericTypeUtils() {}
+    private GenericTypeUtils() {
+    }
 
     /**
      * Returns the declaration applied to its own parameters, such as {@code Box<T>}.
@@ -46,7 +42,7 @@ public final class GenericTypeUtils {
      * <p>The method is declared by {@code Base<T>}, but its receiver has type {@code Derived<int>}.
      * Searching the receiver type for the {@code Base} declaration therefore returns {@code Base<int>}.</p>
      *
-     * @param type The type from which to start the search, usually the receiver type of member call.
+     * @param type        The type from which to start the search, usually the receiver type of member call.
      * @param declaration The generic type declaration whose application is being searched for.
      * @return The matching generic type application, or {@code null} if it cannot be found.
      */

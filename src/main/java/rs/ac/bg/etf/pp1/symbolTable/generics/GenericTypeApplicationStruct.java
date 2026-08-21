@@ -1,12 +1,12 @@
 package rs.ac.bg.etf.pp1.symbolTable.generics;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A use of a generic class or interface with all type arguments supplied.

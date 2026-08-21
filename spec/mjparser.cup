@@ -11,7 +11,6 @@ parser code {:
 	boolean errorDetected = false;
 	Logger log = Logger.getLogger(getClass());
 
-   
    	// Redefined error-reporting methods
      
     public void report_fatal_error(String message, Object info) throws java.lang.Exception {
@@ -20,11 +19,11 @@ parser code {:
     }
   
     public void syntax_error(Symbol cur_token) {
-        report_error("\nSintaksna greska", cur_token);
+        report_error("\nSyntax error", cur_token);
     }
   
     public void unrecovered_syntax_error(Symbol cur_token) throws java.lang.Exception {
-        report_fatal_error("Fatalna greska, parsiranje se ne moze nastaviti", cur_token);
+        report_fatal_error("Fatal error, parsing cannot be continued", cur_token);
     }
 
     public void report_error(String message, Object info) {
@@ -35,14 +34,14 @@ parser code {:
     public void report_info(String message, Object info) {
     	StringBuilder msg = new StringBuilder(message); 
     	if (info instanceof Symbol) {
-    		msg.append(" na liniji ").append(((Symbol)info).left);
-    		msg.append(" na simbolu '").append(((Symbol)info).value).append("'");
+    		msg.append(" on line ").append(((Symbol)info).left);
+    		msg.append(" at symbol '").append(((Symbol)info).value).append("'");
     	}
         log.info(msg.toString());
     }
     
     public void report_recovered_error() {
-    	log.info("Oporavak od greske uspjesan, parsiranje se nastavlja");
+    	log.info("Error recovery successful, parsing will be continued");
     }
 :}
 

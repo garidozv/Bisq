@@ -1,13 +1,5 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Set;
-
 import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
@@ -17,6 +9,8 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+
+import java.util.*;
 
 /**
  * Collects uses of generics during semantic analysis and creates a plan of what needs to be generated with which
@@ -56,7 +50,7 @@ public class MonomorphizationPlanner {
     }
 
     /*
-     * We start from root uses, which appear in non generic contexts with concrete arguments. Creating a specialization
+     * We start from root uses, which appear in non-generic contexts with concrete arguments. Creating a specialization
      * also processes the uses nested inside its definition with those arguments. Member method uses additionally become
      * virtual method requests. Each request is compared with every concrete class method that could implement it, so
      * virtual dispatch has every required overriding body available.
@@ -232,7 +226,7 @@ public class MonomorphizationPlanner {
         private GenericTypeSpecialization getOrCreateTypeSpecialization(GenericTypeObj declaration, List<Struct> typeArguments) {
             var key = new SpecializationKey(declaration, typeArguments);
             var existing = specializations.get(key);
-            if (existing != null) return (GenericTypeSpecialization)existing;
+            if (existing != null) return (GenericTypeSpecialization) existing;
 
             var specialization = new GenericTypeSpecialization(declaration, typeArguments);
             specializations.put(key, specialization);
@@ -242,13 +236,13 @@ public class MonomorphizationPlanner {
         }
 
         private GenericMethodSpecialization getOrCreateMethodSpecialization(GenericMethodObj declaration,
-                List<Struct> ownerArguments, List<Struct> methodArguments) {
+                                                                            List<Struct> ownerArguments, List<Struct> methodArguments) {
             var arguments = new ArrayList<Struct>(ownerArguments.size() + methodArguments.size());
             arguments.addAll(ownerArguments);
             arguments.addAll(methodArguments);
             var key = new SpecializationKey(declaration, arguments);
             var existing = specializations.get(key);
-            if (existing != null) return (GenericMethodSpecialization)existing;
+            if (existing != null) return (GenericMethodSpecialization) existing;
 
             var generatedName = declaration.isMemberMethod()
                     ? TabUtils.createInternalName(declaration.getName() + "$" + getVirtualMethodId(declaration.getName(), methodArguments))
@@ -295,9 +289,11 @@ public class MonomorphizationPlanner {
     }
 
     private record GenericMethodUse(CallableRef_Applied node, GenericMethodObj declaration,
-                                    List<Struct> ownerTypeArguments, List<Struct> methodTypeArguments) implements GenericUse {}
+                                    List<Struct> ownerTypeArguments, List<Struct> methodTypeArguments) implements GenericUse {
+    }
 
-    private record GenericTypeUse(SyntaxNode node, GenericTypeObj declaration, List<Struct> typeArguments) implements GenericUse {}
+    private record GenericTypeUse(SyntaxNode node, GenericTypeObj declaration, List<Struct> typeArguments) implements GenericUse {
+    }
 
     /**
      * Represents a generic {@link #method()} that could be specialized for a concrete owner class.
@@ -316,7 +312,8 @@ public class MonomorphizationPlanner {
     /**
      * A pending check of whether a concrete generic method candidate must be specialized to satisfy a virtual method request.
      */
-    private record VirtualMethodRequestCheck(GenericMethodSpecialization request, ConcreteMethodCandidate candidate) {}
+    private record VirtualMethodRequestCheck(GenericMethodSpecialization request, ConcreteMethodCandidate candidate) {
+    }
 
     private record SpecializationKey(GenericObj declaration, List<Struct> typeArguments) {
         private SpecializationKey(GenericObj declaration, List<Struct> typeArguments) {

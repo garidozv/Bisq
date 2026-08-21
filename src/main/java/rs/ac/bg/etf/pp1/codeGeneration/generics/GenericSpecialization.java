@@ -1,9 +1,5 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericParameterStruct;
@@ -11,6 +7,10 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
+
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 
 public abstract class GenericSpecialization<TDeclaration extends GenericObj> {
     private final TDeclaration declaration;

@@ -1,9 +1,9 @@
 package rs.ac.bg.etf.pp1;
 
-import java.io.StringReader;
-
 import rs.ac.bg.etf.pp1.ast.Program;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+
+import java.io.StringReader;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -23,5 +23,6 @@ abstract class CompilerTestBase {
         return new AnalysisResult(program, analyzer);
     }
 
-    protected record AnalysisResult(Program program, SemanticAnalyzer analyzer) {}
+    protected record AnalysisResult(Program program, SemanticAnalyzer analyzer) {
+    }
 }

@@ -1,9 +1,6 @@
 package rs.ac.bg.etf.pp1;
 
-import java.util.HashMap;
-
 import org.junit.jupiter.api.Test;
-
 import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
 import rs.ac.bg.etf.pp1.ast.ClassDecl_NonDerived;
 import rs.ac.bg.etf.pp1.ast.Program;
@@ -12,9 +9,9 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.HashMap;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class GenericClassTest extends CompilerTestBase {
 

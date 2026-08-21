@@ -1,23 +1,6 @@
 package rs.ac.bg.etf.pp1.codeGeneration;
 
-import java.util.ArrayList;
-import java.util.stream.Collectors;
-
-import rs.ac.bg.etf.pp1.ast.ClassDecl;
-import rs.ac.bg.etf.pp1.ast.ClassDecl_Derived;
-import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
-import rs.ac.bg.etf.pp1.ast.GenericMethodDecl;
-import rs.ac.bg.etf.pp1.ast.MethodDecl;
-import rs.ac.bg.etf.pp1.ast.MethodDeclList_GenericMethodDecl;
-import rs.ac.bg.etf.pp1.ast.MethodDeclList_MethodDecl;
-import rs.ac.bg.etf.pp1.ast.Program;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclList;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclList_ClassDecl;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclList_ConstDecl;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclList_InterfaceDecl;
-import rs.ac.bg.etf.pp1.ast.ProgramDeclList_VarDecl;
-import rs.ac.bg.etf.pp1.ast.SyntaxNode;
-import rs.ac.bg.etf.pp1.ast.VisitorAdaptor;
+import rs.ac.bg.etf.pp1.ast.*;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericTypeSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
@@ -28,6 +11,9 @@ import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
 import rs.etf.pp1.symboltable.structure.HashTableDataStructure;
+
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Controls code generation by deciding which concrete definitions must be generated and delegating that to the {@link CodeGenerator}.
@@ -107,7 +93,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
         methodList.getMethodDeclList().accept(this);
 
         var method = methodList.getGenericMethodDecl();
-        var declaration = (GenericMethodObj)method.obj;
+        var declaration = (GenericMethodObj) method.obj;
         for (var specialization : monomorphizationPlan.getNeededSpecializations(declaration)) {
             generator.generateMethod(method.getStatementList(), specialization.getGeneratedObject(), specialization);
         }
@@ -138,7 +124,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
     /**
      * Emits methods for every concrete form of the given type.
      * <p>Ordinary types are emitted once, while generic types are emitted once for each required type specialization.
-     *  Within each concrete type, generic methods are emitted once for each required method specialization.</p>
+     * Within each concrete type, generic methods are emitted once for each required method specialization.</p>
      */
     private void emitTypeMethods(SyntaxNode declaration, Obj typeObject) {
         if (typeObject instanceof GenericTypeObj genericType) {
@@ -159,7 +145,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
 
         // Generic methods need to be generated for each one of their specializations
         for (var method : getDeclaredGenericMethods(declaration)) {
-            var genericMethod = (GenericMethodObj)method.obj;
+            var genericMethod = (GenericMethodObj) method.obj;
             var specializations = ownerSpecialization == null
                     ? monomorphizationPlan.getNeededSpecializations(genericMethod)
                     : monomorphizationPlan.getNeededSpecializations(genericMethod, ownerSpecialization);
@@ -186,28 +172,23 @@ public final class CodeGenerationController extends VisitorAdaptor {
                     configureTypeMembers(classDeclaration, specialization.getGeneratedObject().getType(), specialization);
                     generator.registerClass(specialization.getGeneratedObject());
                 }
-            }
-            else {
+            } else {
                 configureTypeMembers(classDeclaration, classDeclaration.obj.getType(), null);
                 generator.registerClass(classDeclaration.obj);
             }
-        }
-        else if (declarations instanceof ProgramDeclList_InterfaceDecl interfaceDeclarations) {
+        } else if (declarations instanceof ProgramDeclList_InterfaceDecl interfaceDeclarations) {
             registerClasses(interfaceDeclarations.getProgramDeclList());
             var declaration = interfaceDeclarations.getInterfaceDecl();
             if (declaration.obj instanceof GenericTypeObj genericType) {
                 for (var specialization : monomorphizationPlan.getNeededSpecializations(genericType)) {
                     configureTypeMembers(declaration, specialization.getGeneratedObject().getType(), specialization);
                 }
-            }
-            else {
+            } else {
                 configureTypeMembers(declaration, declaration.obj.getType(), null);
             }
-        }
-        else if (declarations instanceof ProgramDeclList_ConstDecl constDeclarations) {
+        } else if (declarations instanceof ProgramDeclList_ConstDecl constDeclarations) {
             registerClasses(constDeclarations.getProgramDeclList());
-        }
-        else if (declarations instanceof ProgramDeclList_VarDecl varDeclarations) {
+        } else if (declarations instanceof ProgramDeclList_VarDecl varDeclarations) {
             registerClasses(varDeclarations.getProgramDeclList());
         }
     }
@@ -238,7 +219,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
      * addresses are fixed layout offsets and do not change during code generation.</p>
      */
     private void configureClassInheritance(ClassDecl declaration, Struct generatedType,
-            GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
+                                           GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
         if (!(declaration instanceof ClassDecl_Derived derived) || declaration.obj.getType().getElemType() == null)
             return;
 
@@ -250,7 +231,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
 
         var generatedExtendedClass = extendedType;
         if (extendedType instanceof GenericTypeApplicationStruct) {
-            var inheritance = (ExtendedTypeName_Valid)derived.getExtendedTypeName();
+            var inheritance = (ExtendedTypeName_Valid) derived.getExtendedTypeName();
             generatedExtendedClass = monomorphizationPlan.getTargetSpecialization(inheritance, specialization).getGeneratedObject().getType();
         }
 
@@ -294,7 +275,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
                 .forEach(member -> generatedMembers.deleteKey(member.getName()));
 
         for (var method : getDeclaredGenericMethods(declaration)) {
-            var genericMethod = (GenericMethodObj)method.obj;
+            var genericMethod = (GenericMethodObj) method.obj;
             var specializations = ownerSpecialization == null
                     ? monomorphizationPlan.getNeededSpecializations(genericMethod)
                     : monomorphizationPlan.getNeededSpecializations(genericMethod, ownerSpecialization);
@@ -310,7 +291,7 @@ public final class CodeGenerationController extends VisitorAdaptor {
      * It replaces copied default method objects with the actual objects from the specialized interface.
      */
     private void configureImplementedInterface(ClassDecl declaration, Struct generatedType,
-            GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
+                                               GenericSpecialization<?> specialization, HashTableDataStructure generatedMembers) {
         if (!(declaration instanceof ClassDecl_Derived derived) ||
                 !(derived.getExtendedTypeName() instanceof ExtendedTypeName_Valid inheritance))
             return;
@@ -336,8 +317,8 @@ public final class CodeGenerationController extends VisitorAdaptor {
         generatedExtendedInterface.getMembers().stream()
                 .filter(method ->
                         method.getKind() == Obj.Meth &&
-                        method.getFpPos() != MethodTypes.LOCAL_UNIMPLEMENTED.value &&
-                        !declaredMethodNames.contains(method.getName()))
+                                method.getFpPos() != MethodTypes.LOCAL_UNIMPLEMENTED.value &&
+                                !declaredMethodNames.contains(method.getName()))
                 .forEach(method -> replaceMember(generatedMembers, method));
     }
 

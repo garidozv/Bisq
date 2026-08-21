@@ -1,9 +1,9 @@
 package rs.ac.bg.etf.pp1.symbolTable.generics;
 
-import java.util.List;
-
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+
+import java.util.List;
 
 /**
  * The symbol for a generic method declaration.

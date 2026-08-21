@@ -1,16 +1,10 @@
 package rs.ac.bg.etf.pp1.symbolTable.generics;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.etf.pp1.symboltable.concepts.Obj;
 import rs.etf.pp1.symboltable.concepts.Struct;
+
+import java.util.*;
 
 /**
  * Common symbol table metadata for generic type and method declarations.
@@ -36,15 +30,19 @@ public abstract class GenericObj extends Obj {
     }
 
     public final GenericParameterStruct getTypeParameterType(int index) {
-        return (GenericParameterStruct)typeParameters.get(index).getType();
+        return (GenericParameterStruct) typeParameters.get(index).getType();
     }
 
-    /** Validates type arguments and returns their substitution for this declaration's parameters. */
+    /**
+     * Validates type arguments and returns their substitution for this declaration's parameters.
+     */
     public final Map<GenericParameterStruct, Struct> validateAndCreateSubstitution(List<Struct> arguments) {
         return validateAndCreateSubstitution(arguments, Map.of());
     }
 
-    /** Validates arguments in an enclosing generic context and returns the combined substitution. */
+    /**
+     * Validates arguments in an enclosing generic context and returns the combined substitution.
+     */
     public final Map<GenericParameterStruct, Struct> validateAndCreateSubstitution(
             List<Struct> arguments, Map<GenericParameterStruct, Struct> enclosingSubstitution) {
         if (arguments == null || arguments.size() != getTypeParameterCount()) {

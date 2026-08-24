@@ -59,7 +59,7 @@ class Kvadar extends Predmet
 interface Displayable{
 	
 	void display(){
-		print('N'); print('O'); print('T'); print(' '); print('I'); print('M'); print('P'); print('L'); print('E'); print('M'); print('E'); print('N'); print('T'); print('E'); print('D'); print(eol);
+		print("NOT IMPLEMENTED\n");
 	}
 	
 	int height();
@@ -71,10 +71,10 @@ class Dot extends Displayable{
 	int h;
 	{
 		void display(){
-			print(' '); print('O'); print('O'); print(' '); print(eol);
-			print('O'); print('O'); print('O'); print('O'); print(eol);
-			print('O'); print('O'); print('O'); print('O'); print(eol);
-			print(' '); print('O'); print('O'); print(' '); print(eol);
+			print(" OO \n");
+			print("OOOO\n");
+			print("OOOO\n");
+			print(" OO \n");
 		}
 		
 		int height(){

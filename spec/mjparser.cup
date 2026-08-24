@@ -60,6 +60,7 @@ terminal
 	TURBOFISH;
 	
 terminal String IDENT;
+terminal String STRING;
 terminal Integer NUMBER;
 terminal Character CHAR;
 terminal Boolean BOOL;
@@ -282,6 +283,8 @@ Statement ::= 	(Statement_DesignatorStatement) DesignatorStatement SEMI
 				(Statement_PrintExpr) PRINT LPAREN Expr RPAREN SEMI
 				|
 				(Statement_PrintExprWithNum) PRINT LPAREN Expr COMMA NUMBER RPAREN SEMI
+				|
+				(Statement_PrintString) PRINT LPAREN STRING RPAREN SEMI
 				|
 				(Statement_DoWhileTrue) DoToken Statement WhileToken LPAREN RPAREN SEMI
 				|

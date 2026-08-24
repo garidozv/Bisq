@@ -4,16 +4,16 @@ program ForLoopTest
 {	
 	void main() int i, j;
 	{
-		print('i'); print(eol);
+		print("i\n");
 		for (i = 0; i < 10; i++) {
 			print(i); print(eol);
 			for (j = i - 1; j < 10;) {
 				j++;
 				if (j % 2 == 0) continue;
-				print('j'); print('='); print(j); print(eol);
+				print("j="); print(j); print(eol);
 				if (j == 7) break;
 			}
-			print('o'); print(eol);
+			print("o\n");
 		}
 		print(eol);
 		

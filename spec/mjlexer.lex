@@ -109,6 +109,7 @@ import java_cup.runtime.Symbol;
 
 // Tokens
 
+\"[^\"\r\n]*\" 					{ return new_symbol(sym.STRING, yytext().substring(1, yytext().length() - 1)); }
 "'"."'" 						{ return new_symbol(sym.CHAR, Character.valueOf(yytext().charAt(1))); }
 ("true"|"false") 				{ return new_symbol(sym.BOOL, Boolean.valueOf(yytext())); }
 [:digit:]+  							{ return new_symbol(sym.NUMBER, Integer.valueOf(yytext())); }

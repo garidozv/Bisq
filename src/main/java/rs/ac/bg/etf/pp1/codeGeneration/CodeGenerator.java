@@ -648,6 +648,20 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
     @Override
+    public void visit(Statement_PrintString statement) {
+        var value = statement.getS1();
+        for (var index = 0; index < value.length(); index++) {
+            var character = value.charAt(index);
+            if (character == '\\' && index + 1 < value.length() && value.charAt(index + 1) == 'n') {
+                character = '\n';
+                index++;
+            }
+            Code.loadConst(character);
+            generatePrintStatement(Tab.charType, 0);
+        }
+    }
+
+    @Override
     public void visit(Statement_Read statement) {
         var statementObj = resolveObject(statement.getDesignator().obj);
 

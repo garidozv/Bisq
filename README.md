@@ -64,7 +64,6 @@ interface Movable {
 }
 
 class Object extends Movable {
-
     {
         void objectMove(int x, int y) {
             // ...
@@ -72,6 +71,7 @@ class Object extends Movable {
         void move(int x, int y) {
             customMove(x, y);
         }
+    }
 }
 
 class Block extends Object {

@@ -2,6 +2,8 @@ package rs.ac.bg.etf.pp1;
 
 import org.junit.jupiter.api.Test;
 import rs.ac.bg.etf.pp1.ast.*;
+import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeObj;
 import rs.etf.pp1.symboltable.concepts.Obj;
 
@@ -10,6 +12,47 @@ import java.util.HashMap;
 import static org.junit.jupiter.api.Assertions.*;
 
 class GenericInterfaceTest extends CompilerTestBase {
+
+    @Test
+    void supportsGenericAbstractInterfaceMethods() throws Exception {
+        var analysis = analyzeProgram("""
+                program GenericAbstractInterfaceMethod
+
+                class Base {}
+
+                interface Mapper<T> {
+                    <U extends Base> U transform(T source, U value);
+                }
+
+                class MapperImplementation<T> extends Mapper<T> {
+                    {
+                        <U extends Base> U transform(T source, U value) {
+                            return value;
+                        }
+                    }
+                }
+                {
+                    void main() Mapper<int> mapper; MapperImplementation<int> implementation; Base result; {
+                        implementation = new MapperImplementation<int>();
+                        mapper = implementation;
+                        result = mapper.transform::<Base>(1, new Base());
+                    }
+                }
+                """);
+
+        assertTrue(analysis.analyzer().passed());
+
+        var declarations = findGenericTypes(analysis.program());
+        var interfaceMethod = declarations.get("Mapper").getType().getMembersTable().searchKey("transform");
+        assertInstanceOf(GenericMethodObj.class, interfaceMethod);
+        assertEquals(TabUtils.MethodTypes.LOCAL_UNIMPLEMENTED.value, interfaceMethod.getFpPos());
+
+        var implementationMethod = declarations.get("MapperImplementation").getType().getMembersTable().searchKey("transform");
+        var plan = analysis.analyzer().createMonomorphizationPlan();
+        var implementationType = plan.getNeededSpecializations(declarations.get("MapperImplementation")).getFirst();
+        assertEquals(1, plan.getNeededSpecializations((GenericMethodObj) interfaceMethod).size());
+        assertEquals(1, plan.getNeededSpecializations((GenericMethodObj) implementationMethod, implementationType).size());
+    }
 
     @Test
     void supportsGenericInterfacesAndPlansAllDependencies() throws Exception {

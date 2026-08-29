@@ -173,7 +173,9 @@ InterfaceBody ::=	(InterfaceBody_MethodDecl) InterfaceBody MethodDecl
 					|
 					(InterfaceBody_GenericMethodDecl) InterfaceBody GenericMethodDecl
 					|
-					(InterfaceBody_MethodSignature) InterfaceBody MethodSignature SEMI 
+					(InterfaceBody_MethodSignature) InterfaceBody MethodSignature SEMI
+					|
+					(InterfaceBody_GenericMethodSignature) InterfaceBody GenericMethodSignature SEMI
 					|
 					(InterfaceBody_Epsilon) /* epsilon */
 					; 

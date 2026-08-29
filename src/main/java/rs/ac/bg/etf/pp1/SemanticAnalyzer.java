@@ -702,6 +702,16 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(InterfaceBody_MethodSignature methodSignature) {
+        completeCurrentInterfaceMethodSignature();
+    }
+
+    @Override
+    public void visit(InterfaceBody_GenericMethodSignature methodSignature) {
+        completeCurrentInterfaceMethodSignature();
+        popGenericParameterScope();
+    }
+
+    private void completeCurrentInterfaceMethodSignature() {
         if (currentMethod == null) {
             paramCount = 0;
             return;

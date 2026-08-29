@@ -11,7 +11,7 @@ class RightBase {
 class Left extends LeftBase {}
 class Right extends RightBase {}
 
-interface Pair<T : LeftBase, U : RightBase> {
+interface Pair<T extends LeftBase, U extends RightBase> {
     T first(T value);
 
     T forward(T value) {
@@ -27,7 +27,7 @@ interface Pair<T : LeftBase, U : RightBase> {
     }
 }
 
-class Implementation<T : LeftBase, U : RightBase> extends Pair<T, U> {
+class Implementation<T extends LeftBase, U extends RightBase> extends Pair<T, U> {
     {
         T first(T value) {
             return value;
@@ -39,7 +39,7 @@ class Implementation<T : LeftBase, U : RightBase> extends Pair<T, U> {
     }
 }
 
-class Consumer<V : Pair<Left, Right>> {
+class Consumer<V extends Pair<Left, Right>> {
     {
         int kind(V value) {
             return value.kind();

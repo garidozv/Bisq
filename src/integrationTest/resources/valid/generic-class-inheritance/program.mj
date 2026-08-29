@@ -46,7 +46,7 @@ class RightBase {
 class Left extends LeftBase {}
 class Right extends RightBase {}
 
-class Pair<T : LeftBase, U : RightBase> {
+class Pair<T extends LeftBase, U extends RightBase> {
     T left;
     U right;
     {
@@ -61,7 +61,7 @@ class Pair<T : LeftBase, U : RightBase> {
     }
 }
 
-class DerivedPair<T : LeftBase, U : RightBase> extends Pair<T, U> {}
+class DerivedPair<T extends LeftBase, U extends RightBase> extends Pair<T, U> {}
 {
     void main() Base<int> base; Base<char> charBase; Derived<int> derived; Derived<char> chars;
                 Leaf<int> leaf; IntDerived fixed; GenericFromOrdinary<int> genericOrdinary;

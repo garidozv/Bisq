@@ -4,17 +4,17 @@ class Left {}
 class Right {}
 class Pair<A, B> {}
 
-class Base<A : Left, B : Right> {
+class Base<A extends Left, B extends Right> {
     {
-        <T : Pair<A, B>, U : Right> int value(T first, U second) {
+        <T extends Pair<A, B>, U extends Right> int value(T first, U second) {
             return 1;
         }
     }
 }
 
-class Derived<A : Left, B : Right> extends Base<A, B> {
+class Derived<A extends Left, B extends Right> extends Base<A, B> {
     {
-        <T : Pair<A, B>, U : Right> int value(T first, U second) {
+        <T extends Pair<A, B>, U extends Right> int value(T first, U second) {
             return 2;
         }
     }
@@ -22,14 +22,14 @@ class Derived<A : Left, B : Right> extends Base<A, B> {
 
 class Leaf extends Derived<Left, Right> {
     {
-        <T : Pair<Left, Right>, U : Right> int value(T first, U second) {
+        <T extends Pair<Left, Right>, U extends Right> int value(T first, U second) {
             return 3;
         }
     }
 }
 
-interface Provider<A : Left, B : Right> {
-    <T : Pair<A, B>, U : Right> int kind(T first, U second) {
+interface Provider<A extends Left, B extends Right> {
+    <T extends Pair<A, B>, U extends Right> int kind(T first, U second) {
         return 4;
     }
 }
@@ -38,7 +38,7 @@ class DefaultProvider extends Provider<Left, Right> {}
 
 class ProviderBase extends Provider<Left, Right> {
     {
-        <T : Pair<Left, Right>, U : Right> int kind(T first, U second) {
+        <T extends Pair<Left, Right>, U extends Right> int kind(T first, U second) {
             return 5;
         }
     }
@@ -46,7 +46,7 @@ class ProviderBase extends Provider<Left, Right> {
 
 class ProviderImplementation extends ProviderBase {
     {
-        <T : Pair<Left, Right>, U : Right> int kind(T first, U second) {
+        <T extends Pair<Left, Right>, U extends Right> int kind(T first, U second) {
             return 6;
         }
     }

@@ -128,7 +128,7 @@ class Wrapper<T> {
    }
 }
 ```
-A generic parameter can have a class or interface constraint, written as `<T : Constraint>`.
+A generic parameter can have a class or interface constraint, written as `<T extends Constraint>`.
 A supplied type must satisfy the constraint, and the generic declaration can use the members provided by it. <br/>
 If no constraint is specified, any valid type can be supplied as the type argument, and values of that type can be
 stored, assigned, passed, and returned, but no class or interface members can be accessed through it.
@@ -148,7 +148,7 @@ class Document extends Printable {
     }
 }
 
-interface Provider<T : Printable> {
+interface Provider<T extends Printable> {
     T get();
 
     <U> U echo(U value) {
@@ -156,7 +156,7 @@ interface Provider<T : Printable> {
     }
 }
 
-class BaseProvider<T : Printable> extends Provider<T> {
+class BaseProvider<T extends Printable> extends Provider<T> {
     T value;
     {
         T get() {
@@ -170,7 +170,7 @@ class BaseProvider<T : Printable> extends Provider<T> {
     }
 }
 
-class DerivedProvider<T : Printable> extends BaseProvider<T> {}
+class DerivedProvider<T extends Printable, U> extends BaseProvider<T> {}
 ```
 ---
 
@@ -291,7 +291,7 @@ interface Printable {
     void printMe();
 }
 
-interface ProcessingQueue<TItem : Printable> {
+interface ProcessingQueue<TItem extends Printable> {
     void handle(TItem item);
 
     void process(TItem items[]) int index; {

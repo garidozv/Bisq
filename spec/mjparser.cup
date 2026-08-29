@@ -241,7 +241,7 @@ TypeParameterList ::=	(TypeParameterList_Parameter) TypeParameter
 
 TypeParameter ::=	(TypeParameter_Unbounded) IDENT
 					|
-					(TypeParameter_Bounded) IDENT COL Type
+					(TypeParameter_Bounded) IDENT EXTENDS Type
 					;
 
 TypeArgumentList ::=	(TypeArgumentList_Type) Type

@@ -33,11 +33,11 @@ class Derived extends Base {}
         return identity::<U>(value);
     }
 
-    <T : Base> int readValue(T value) {
+    <T extends Base> int readValue(T value) {
         return value.getValue();
     }
 
-    <T : Printable> void printMe(T value) {
+    <T extends Printable> void printMe(T value) {
         value.printMe(); print(eol);
     }
 

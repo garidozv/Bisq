@@ -60,7 +60,7 @@ class GenericMethodTest extends CompilerTestBase {
                 program Generics
                 class Base {}
                 {
-                    <T : Base, U> T first(T value, U ignored) {
+                    <T extends Base, U> T first(T value, U ignored) {
                         return value;
                     }
 
@@ -165,14 +165,14 @@ class GenericMethodTest extends CompilerTestBase {
                 class Left {}
                 class Right {}
                 class Pair<A, B> {}
-                class Base<T : Left, U : Right> {
+                class Base<T extends Left, U extends Right> {
                     {
-                        <V : Pair<T, U>, W : Right> V choose(V first, W second) { return first; }
+                        <V extends Pair<T, U>, W extends Right> V choose(V first, W second) { return first; }
                     }
                 }
-                class Derived<T : Left, U : Right> extends Base<T, U> {
+                class Derived<T extends Left, U extends Right> extends Base<T, U> {
                     {
-                        <X : Pair<T, U>, Y : Right> X choose(X first, Y second) { return first; }
+                        <X extends Pair<T, U>, Y extends Right> X choose(X first, Y second) { return first; }
                     }
                 }
                 { void main() {} }
@@ -185,14 +185,14 @@ class GenericMethodTest extends CompilerTestBase {
                 class Left {}
                 class Right {}
                 class Pair<A, B> {}
-                class Base<T : Left, U : Right> {
+                class Base<T extends Left, U extends Right> {
                     {
-                        <V : Pair<T, U>, W : Right> V choose(V first, W second) { return first; }
+                        <V extends Pair<T, U>, W extends Right> V choose(V first, W second) { return first; }
                     }
                 }
-                class Derived<T : Left, U : Right> extends Base<T, U> {
+                class Derived<T extends Left, U extends Right> extends Base<T, U> {
                     {
-                        <X : Pair<T, U>, Y> X choose(X first, Y second) { return first; }
+                        <X extends Pair<T, U>, Y> X choose(X first, Y second) { return first; }
                     }
                 }
                 { void main() {} }
@@ -359,7 +359,7 @@ class GenericMethodTest extends CompilerTestBase {
                 class Holder<T> {}
                 class Box<T> {
                     {
-                        <U : Holder<T>> U keep(U value) { return value; }
+                        <U extends Holder<T>> U keep(U value) { return value; }
                     }
                 }
                 {
@@ -377,7 +377,7 @@ class GenericMethodTest extends CompilerTestBase {
                 class Holder<T> {}
                 class Box<T> {
                     {
-                        <U : Holder<T>> U keep(U value) { return value; }
+                        <U extends Holder<T>> U keep(U value) { return value; }
                     }
                 }
                 {
@@ -402,14 +402,14 @@ class GenericMethodTest extends CompilerTestBase {
 
         assertFalse(analyze("""
                 program PrimitiveBound {
-                    <T : int> T invalid(T value) { return value; }
+                    <T extends int> T invalid(T value) { return value; }
                     void main() {}
                 }
                 """).analyzer().passed());
 
         assertFalse(analyze("""
                 program UndefinedBound {
-                    <T : Missing> T invalid(T value) { return value; }
+                    <T extends Missing> T invalid(T value) { return value; }
                     void main() {}
                 }
                 """).analyzer().passed());
@@ -497,9 +497,9 @@ class GenericMethodTest extends CompilerTestBase {
                 class Base { int baseField; }
                 class Derived extends Base { int derivedField; }
                 {
-                    <T : Base> T requireBase(T value) { return value; }
+                    <T extends Base> T requireBase(T value) { return value; }
 
-                    <D : Derived> D forward(D value) {
+                    <D extends Derived> D forward(D value) {
                         return requireBase::<D>(value);
                     }
 
@@ -516,9 +516,9 @@ class GenericMethodTest extends CompilerTestBase {
                 class Base { int baseField; }
                 class Derived extends Base { int derivedField; }
                 {
-                    <T : Derived> T requireDerived(T value) { return value; }
+                    <T extends Derived> T requireDerived(T value) { return value; }
 
-                    <D : Base> D invalid(D value) {
+                    <D extends Base> D invalid(D value) {
                         return requireDerived::<D>(value);
                     }
                     void main() {}
@@ -565,7 +565,7 @@ class GenericMethodTest extends CompilerTestBase {
                 program ViolatedConstraint
                 class Base {}
                 {
-                    <T : Base> T requireBase(T value) { return value; }
+                    <T extends Base> T requireBase(T value) { return value; }
                     void main() { requireBase::<char>('a'); }
                 }
                 """).analyzer().passed());
@@ -589,23 +589,23 @@ class GenericMethodTest extends CompilerTestBase {
                     int getValue();
                 }
                 {
-                    <T : Base> int readMethod(T value) {
+                    <T extends Base> int readMethod(T value) {
                         return value.getValue();
                     }
 
-                    <T : Base> int readField(T value) {
+                    <T extends Base> int readField(T value) {
                         return value.value;
                     }
 
-                    <T : Base> Base chained(T value) {
+                    <T extends Base> Base chained(T value) {
                         return value.self();
                     }
 
-                    <T : Derived> int readInherited(T value) {
+                    <T extends Derived> int readInherited(T value) {
                         return value.getValue();
                     }
 
-                    <T : HasValue> int readInterface(T value) {
+                    <T extends HasValue> int readInterface(T value) {
                         return value.getValue();
                     }
 
@@ -631,7 +631,7 @@ class GenericMethodTest extends CompilerTestBase {
                 program MissingConstraintMember
                 class Base {}
                 {
-                    <T : Base> int invalid(T value) {
+                    <T extends Base> int invalid(T value) {
                         return value.getValue();
                     }
                     void main() {}

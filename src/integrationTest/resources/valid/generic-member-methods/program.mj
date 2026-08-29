@@ -11,9 +11,9 @@ class RightBase {
 class Left extends LeftBase {}
 class Right extends RightBase {}
 
-class PairBox<T : LeftBase, U : RightBase> {
+class PairBox<T extends LeftBase, U extends RightBase> {
     {
-        <V : LeftBase, W : RightBase> T choose(T ownerValue, V leftValue, W rightValue) {
+        <V extends LeftBase, W extends RightBase> T choose(T ownerValue, V leftValue, W rightValue) {
             ownerValue.value = ownerValue.value + leftValue.value + rightValue.value;
             return ownerValue;
         }
@@ -46,7 +46,7 @@ class Ordinary {
 
 class DerivedOrdinary extends Ordinary {}
 
-class DerivedPair<T : LeftBase, U : RightBase> extends PairBox<T, U> {}
+class DerivedPair<T extends LeftBase, U extends RightBase> extends PairBox<T, U> {}
 
 interface EchoProvider<T> {
     <U> T interfaceEcho(T value, U ignored) {

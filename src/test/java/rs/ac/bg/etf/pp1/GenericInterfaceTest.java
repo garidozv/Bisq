@@ -21,21 +21,21 @@ class GenericInterfaceTest extends CompilerTestBase {
                 class Left extends LeftBase {}
                 class Right extends RightBase {}
 
-                interface Pair<T : LeftBase, U : RightBase> {
+                interface Pair<T extends LeftBase, U extends RightBase> {
                     T first(T value);
                     T forward(T value) { return this.first(value); }
                     U second(U value) { return value; }
                     int marker() { return 1; }
                 }
 
-                class Implementation<T : LeftBase, U : RightBase> extends Pair<T, U> {
+                class Implementation<T extends LeftBase, U extends RightBase> extends Pair<T, U> {
                     {
                         T first(T value) { return value; }
                         int marker() { return 2; }
                     }
                 }
 
-                class Consumer<V : Pair<Left, Right>> {
+                class Consumer<V extends Pair<Left, Right>> {
                     { int marker(V value) { return value.marker(); } }
                 }
                 {
@@ -68,7 +68,7 @@ class GenericInterfaceTest extends CompilerTestBase {
                 class Base {}
                 class Valid extends Base {}
                 class Invalid {}
-                interface Pair<T : Base, U : Base> {}
+                interface Pair<T extends Base, U extends Base> {}
                 { void main() Pair raw; Pair<Valid> arity; Pair<Valid, Invalid> constraint; {} }
                 """).analyzer();
         assertFalse(invalidApplications.passed());

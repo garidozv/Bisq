@@ -118,7 +118,7 @@ class GenericClassTest extends CompilerTestBase {
                     }
                 }
 
-                class Holder<T : Base> {
+                class Holder<T extends Base> {
                     T value;
                     {
                         int readValue() { return value.getValue(); }
@@ -170,7 +170,7 @@ class GenericClassTest extends CompilerTestBase {
                 program InvalidGenericApplications
 
                 class Base {}
-                class Box<T : Base> {}
+                class Box<T extends Base> {}
                 {
                     void main() Box raw; Base<int> appliedBase; Box<int> invalidBound; Box<Base, Base> wrongArity; {
                     }
@@ -225,11 +225,11 @@ class GenericClassTest extends CompilerTestBase {
 
                 class Left {}
                 class Right {}
-                class Pair<T : Left, U : Right> {
+                class Pair<T extends Left, U extends Right> {
                     T left;
                     U right;
                 }
-                class DerivedPair<T : Left, U : Right> extends Pair<T, U> {}
+                class DerivedPair<T extends Left, U extends Right> extends Pair<T, U> {}
                 {
                     void main() Base<int> base; Derived<int> derived; Derived<char> chars;
                                 Leaf<int> leaf; IntDerived fixed; DerivedPair<Left, Right> pair; {
@@ -293,7 +293,7 @@ class GenericClassTest extends CompilerTestBase {
         var invalidConstraint = analyze("""
                 program InvalidInheritedConstraint
                 class Printable {}
-                class Base<T : Printable> {}
+                class Base<T extends Printable> {}
                 class Derived<T> extends Base<T> {}
                 { void main() {} }
                 """);

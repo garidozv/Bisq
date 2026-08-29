@@ -452,6 +452,155 @@ class GenericMethodTest extends CompilerTestBase {
     }
 
     @Test
+    void methodTypeArgumentsAreInferredFromCallArguments() throws Exception {
+        var result = analyze("""
+                program InferredCalls
+                class Box<T> {
+                    {
+                        <U> U choose(U value) { return value; }
+                    }
+                }
+                {
+                    <T> T identity(T value) { return value; }
+                    <E> E[] singleton(E value) E values[]; {
+                        values = new E[1];
+                        values[0] = value;
+                        return values;
+                    }
+
+                    void main() int number; int numbers[]; char letter; Box<int> box; {
+                        number = identity(3);
+                        numbers = singleton(7);
+                        box = new Box<int>();
+                        letter = box.choose('a');
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var choose = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var identity = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+        var singleton = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(2).obj);
+
+        assertEquals(List.of(Tab.charType), plan.getNeededSpecializations(choose).getFirst().getMethodTypeArguments());
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(identity).getFirst().getMethodTypeArguments());
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(singleton).getFirst().getMethodTypeArguments());
+    }
+
+    @Test
+    void inferredOpenArgumentsAreClosedByTheEnclosingSpecialization() throws Exception {
+        var result = analyze("""
+                program NestedInference {
+                    <T> T identity(T value) { return value; }
+
+                    <U> U forward(U value) {
+                        return identity(value);
+                    }
+
+                    void main() int value; {
+                        value = forward(3);
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var identity = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(0).obj);
+        var forward = assertInstanceOf(GenericMethodObj.class, result.genericMethods().get(1).obj);
+
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(identity).getFirst().getMethodTypeArguments());
+        assertEquals(List.of(Tab.intType), plan.getNeededSpecializations(forward).getFirst().getMethodTypeArguments());
+    }
+
+    @Test
+    void inferenceFindsTheNearestCommonBaseClass() throws Exception {
+        var result = analyze("""
+                program CommonBaseInference
+                class Base { int baseValue; }
+                class Left extends Base { int leftValue; }
+                class Right extends Base { char rightValue; }
+                {
+                    <T extends Base, U> T choose(T first, T second, U ignored) {
+                        return first;
+                    }
+
+                    void main() Left left; Right right; Base result; {
+                        result = choose(left, right, 'a');
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var choose = assertInstanceOf(GenericMethodObj.class, result.genericMethods().getFirst().obj);
+        var specialization = plan.getNeededSpecializations(choose).getFirst();
+
+        assertSame(choose.getTypeParameterType(0).getConstraint(), specialization.getMethodTypeArguments().get(0));
+        assertSame(Tab.charType, specialization.getMethodTypeArguments().get(1));
+    }
+
+    @Test
+    void inferenceFindsACommonImplementedInterface() throws Exception {
+        var result = analyze("""
+                program CommonInterfaceInference
+                interface Printable {
+                    void printMe();
+                }
+                class Left extends Printable {
+                    int leftValue;
+                    { void printMe() {} }
+                }
+                class Right extends Printable {
+                    char rightValue;
+                    { void printMe() {} }
+                }
+                {
+                    <T extends Printable> T choose(T first, T second) {
+                        return first;
+                    }
+
+                    void main() Left left; Right right; Printable result; {
+                        result = choose(left, right);
+                    }
+                }
+                """);
+
+        assertTrue(result.analyzer().passed());
+        var plan = result.analyzer().createMonomorphizationPlan();
+        var choose = assertInstanceOf(GenericMethodObj.class, result.genericMethods().getFirst().obj);
+
+        var inferredInterface = plan.getNeededSpecializations(choose).getFirst().getMethodTypeArguments().getFirst();
+        assertEquals(Struct.Interface, inferredInterface.getKind());
+    }
+
+    @Test
+    void inferredArgumentsMustBeConsistentCompleteAndSatisfyConstraints() throws Exception {
+        assertFalse(analyze("""
+                program ConflictingInference {
+                    <T> void acceptSame(T first, T second) {}
+                    void main() { acceptSame(1, 'a'); }
+                }
+                """).analyzer().passed());
+
+        assertFalse(analyze("""
+                program IncompleteInference {
+                    <T> void consumeNothing() {}
+                    void main() { consumeNothing(); }
+                }
+                """).analyzer().passed());
+
+        assertFalse(analyze("""
+                program InferredConstraint
+                class Base {}
+                {
+                    <T extends Base> void consume(T value) {}
+                    void main() { consume('a'); }
+                }
+                """).analyzer().passed());
+    }
+
+    @Test
     void monomorphizationPlanClosesOpenUsesAndDeduplicatesSpecializations() throws Exception {
         var result = analyze("""
                 program Plan {
@@ -533,13 +682,6 @@ class GenericMethodTest extends CompilerTestBase {
 
     @Test
     void invalidGenericMethodApplicationsAreRejected() throws Exception {
-        assertFalse(analyze("""
-                program MissingTypeArguments {
-                    <T> T identity(T value) { return value; }
-                    void main() int result; { result = identity(3); }
-                }
-                """).analyzer().passed());
-
         assertFalse(analyze("""
                 program OrdinaryApplication {
                     int identity(int value) { return value; }

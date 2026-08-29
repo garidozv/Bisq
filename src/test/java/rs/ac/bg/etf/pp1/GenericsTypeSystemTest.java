@@ -61,6 +61,34 @@ class GenericsTypeSystemTest {
     }
 
     @Test
+    void commonTypesIncludeDirectSupertypesAndNearestCommonBaseClasses() {
+        var base = classWithFields("baseField");
+        var left = classWithFields("baseField", "leftField");
+        var right = classWithFields("baseField", "rightField");
+        var unrelated = classWithFields("unrelatedField");
+        left.setElementType(base);
+        right.setElementType(base);
+
+        assertSame(base, TabUtils.findCommonType(base, left));
+        assertSame(base, TabUtils.findCommonType(left, base));
+        assertSame(base, TabUtils.findCommonType(left, right));
+        assertNull(TabUtils.findCommonType(left, unrelated));
+        assertNull(TabUtils.findCommonType(Tab.intType, Tab.charType));
+        assertNull(TabUtils.findCommonType(null, left));
+    }
+
+    @Test
+    void commonTypesIncludeImplementedInterfaces() {
+        var sharedInterface = interfaceWithMethods("sharedMethod");
+        var first = classWithFields("firstField");
+        var second = classWithFields("secondField");
+        first.addImplementedInterface(sharedInterface);
+        second.addImplementedInterface(sharedInterface);
+
+        assertSame(sharedInterface, TabUtils.findCommonType(first, second));
+    }
+
+    @Test
     void constraintsAreLimitedToClassesAndInterfaces() {
         var interfaceType = new Struct(Struct.Interface);
         var interfaceParameter = new GenericParameterStruct(interfaceType);
@@ -387,5 +415,13 @@ class GenericsTypeSystemTest {
             members.insertKey(new Obj(Obj.Fld, name, Tab.intType));
         }
         return new Struct(Struct.Class, members);
+    }
+
+    private static Struct interfaceWithMethods(String... names) {
+        var members = new HashTableDataStructure();
+        for (var name : names) {
+            members.insertKey(new Obj(Obj.Meth, name, Tab.noType));
+        }
+        return new Struct(Struct.Interface, members);
     }
 }

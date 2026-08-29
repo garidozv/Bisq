@@ -79,7 +79,7 @@ class Block extends Object {
 
     {
         void objectMove(int x, int y) {
-            // override
+            // Override
         }
     }
 }
@@ -102,30 +102,31 @@ void main() int arr[]; Movable m; set s; {
 
 The language supports generic classes, interfaces, global methods, and member methods.  </br>
 Generic parameters are declared between angle brackets `<>`, and they have to be placed after the type name or before the return type in the case of methods. <br/>
-Explicit type arguments must be provided when the generics are used, this includes object creation and method calls.
-For both of them, type arguments are provided after the name, the difference being that object creation
-only uses angle brackets, while method calls use the _turbofish_ operator `::<>`.
+Type arguments are provided after the name, the object creation only uses the angle brackets, while method calls use the _turbofish_ operator `::<>`. <br/>
+For generic method calls, type arguments can also be inferred from the types of the passed arguments, taking common base classes and implemented interfaces into account.
 
 ```java
 class Wrapper<T> {
-   T value;
+    T value;
 }
 
 {
-   <T> T getAtIndex(T array[], int index) {
-       return array[index];
-   }
+    <T> T getAtIndex(T array[], int index) {
+        return array[index];
+    }
+    
+    void main() Wrapper<char> array[]; Wrapper<char> temp; {
+        array = new Wrapper<char>[2];
+        array[0] = new Wrapper<char>();
+        array[0].value = 'D';
+        array[1] = new Wrapper<char>();
+        array[1].value = 'V';
 
-   void main() Wrapper<char> array[]; Wrapper<char> temp; {
-       array = new Wrapper<char>[2];
-       array[0] = new Wrapper<char>();
-       array[0].value = 'D';
-       array[1] = new Wrapper<char>();
-       array[1].value = 'V';
-
-       temp = getAtIndex::<Wrapper<char>>(array, 0);
-       print(temp.value);
-   }
+        temp = getAtIndex::<Wrapper<char>>(array, 0);
+        print(temp.value);
+        temp = getAtIndex(array, 1); // Type argument T is inferred as Wrapper<char>
+        print(temp.value);
+    }
 }
 ```
 A generic parameter can have a class or interface constraint, written as `<T extends Constraint>`.

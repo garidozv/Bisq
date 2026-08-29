@@ -189,6 +189,33 @@ public class TabUtils {
         return false;
     }
 
+    /**
+     * Finds the most specific common type to which both supplied types can be assigned.
+     * Common base classes take priority over implemented interfaces.
+     *
+     * @return the common type, or {@code null} if one cannot be found
+     */
+    public static Struct findCommonType(Struct first, Struct second) {
+        if (first == null || second == null) return null;
+        if (equals(first, second)) return first;
+
+        if (first.getKind() != Struct.Class || second.getKind() != Struct.Class) {
+            if (assignableTo(first, second)) return first;
+            return assignableTo(second, first) ? second : null;
+        }
+
+        Struct commonInterface = null;
+        // Goes through the first type's class hierarchy and implemented interfaces, and 'assignableTo' performs the corresponding checks for the second type
+        for (var currentClass = first; currentClass != null && currentClass.getKind() == Struct.Class; currentClass = currentClass.getElemType()) {
+            if (assignableTo(currentClass, second)) return currentClass;
+
+            for (var implemented : currentClass.getImplementedInterfaces()) {
+                if (assignableTo(implemented, second)) commonInterface = implemented;
+            }
+        }
+        return commonInterface;
+    }
+
     private static boolean implementsInterface(Struct source, Struct destination) {
         for (var current = source; current != null; current = current.getElemType()) {
             for (var implemented : current.getImplementedInterfaces()) {

@@ -5,6 +5,7 @@ import rs.ac.bg.etf.pp1.codeGeneration.generics.GenericSpecialization;
 import rs.ac.bg.etf.pp1.codeGeneration.generics.MonomorphizationPlan;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils.MethodTypes;
+import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericTypeApplicationStruct;
 import rs.etf.pp1.mj.runtime.Code;
 import rs.etf.pp1.symboltable.Tab;
@@ -974,8 +975,8 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
     private Obj resolveCallable(CallableRef callableRef) {
-        if (callableRef instanceof CallableRef_Applied applied)
-            return monomorphizationPlan.getTargetSpecialization(applied, currentSpecialization).getGeneratedObject();
+        if (callableRef.obj instanceof GenericMethodObj)
+            return monomorphizationPlan.getTargetSpecialization(callableRef, currentSpecialization).getGeneratedObject();
         return resolveObject(callableRef.obj);
     }
 

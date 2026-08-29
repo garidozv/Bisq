@@ -30,7 +30,7 @@ class Derived extends Base {}
     }
 
     <U> U forward(U value) {
-        return identity::<U>(value);
+        return identity(value);
     }
 
     <T extends Base> int readValue(T value) {
@@ -42,9 +42,9 @@ class Derived extends Base {}
     }
 
     void main() int number; char letter; int numbers[]; char letters[]; Derived object; Base baseValues[]; {
-        number = identity::<int>(3);
+        number = identity(3);
         letter = identity::<char>('A');
-        numbers = singleton::<int>(7);
+        numbers = singleton(7);
         letters = singleton::<char>('Z');
 
         print(number);

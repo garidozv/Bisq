@@ -54,31 +54,33 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     // Checks if a method can be called with given arguments
     private static boolean isCallableWith(Obj method, Struct argsStruct, UnaryOperator<Struct> mapParamType) {
-        // Take this parameter into account if method is not global
-        var hasThisParam = method.getFpPos() != MethodTypes.GLOBAL.value;
-        var explicitParamCnt = method.getLevel() - (hasThisParam ? 1 : 0);
+        var params = getExplicitParameterTypes(method).stream()
+                .map(mapParamType)
+                .toList();
 
-        if (explicitParamCnt != argsStruct.getImplementedInterfaces().size()) {
+        var args = argsStruct.getImplementedInterfaces().toArray(Struct[]::new);
+        if (params.size() != args.length) {
             return false;
         }
 
-        var params = method.getLocalSymbols().stream()
-                .skip(hasThisParam ? 1 : 0)
-                .limit(explicitParamCnt)
-                .map(Obj::getType)
-                .map(mapParamType)
-                .toArray(Struct[]::new);
-
-        var args = argsStruct.getImplementedInterfaces()
-                .toArray(Struct[]::new);
-
-        for (var i = 0; i < explicitParamCnt; i++) {
-            if (!TabUtils.assignableTo(params[i], args[i])) {
+        for (var i = 0; i < params.size(); i++) {
+            if (!TabUtils.assignableTo(params.get(i), args[i])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private static List<Struct> getExplicitParameterTypes(Obj method) {
+        // Member methods store the implicit 'this' parameter before the parameters written in source code.
+        var hasThisParam = method.getFpPos() != MethodTypes.GLOBAL.value;
+        var explicitParameterCount = method.getLevel() - (hasThisParam ? 1 : 0);
+        return method.getLocalSymbols().stream()
+                .skip(hasThisParam ? 1 : 0)
+                .limit(explicitParameterCount)
+                .map(Obj::getType)
+                .toList();
     }
 
     private static boolean hasMatchingFormalParameters(Obj firstMethod, Obj secondMethod) {
@@ -873,7 +875,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(Factor_DesignatorCall factor) {
-        factor.struct = validateCall(factor.getCallableRef(), factor.getCallPars().struct, factor);
+        factor.struct = validateCall(factor.getCallableRef(), factor.getCallPars().struct, factor, true);
     }
 
     @Override
@@ -997,8 +999,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         var arguments = new Struct(Struct.Array);
         arguments.addImplementedInterface(Tab.intType);
 
-        // Validate the call the same way we do for regular methods
-        var resultType = validateCall(expr.getCallableRef(), arguments, expr);
+        var resultType = validateCall(expr.getCallableRef(), arguments, expr, false);
         if (resultType.equals(Tab.noType)) {
             expr.struct = Tab.noType;
         } else if (!resultType.equals(Tab.intType)) {
@@ -1120,7 +1121,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(DesignatorStatement_Call designatorStatement) {
-        validateCall(designatorStatement.getCallableRef(), designatorStatement.getCallPars().struct, designatorStatement);
+        validateCall(designatorStatement.getCallableRef(), designatorStatement.getCallPars().struct, designatorStatement, true);
     }
 
     @Override
@@ -1304,7 +1305,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         return parameter;
     }
 
-    private Struct validateCall(CallableRef callableRef, Struct argsStruct, SyntaxNode node) {
+    private Struct validateCall(CallableRef callableRef, Struct argsStruct, SyntaxNode node, boolean allowInferredTypeArguments) {
         var method = callableRef.obj;
         if (method.equals(Tab.noObj)) return Tab.noType;
 
@@ -1317,9 +1318,9 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return Tab.noType;
         }
 
-        if (callableRef instanceof CallableRef_Plain) {
-            if (method instanceof GenericMethodObj) {
-                report_error(String.format("Generic method '%s' requires explicit type arguments", method.getName()), node);
+        if (!(method instanceof GenericMethodObj genericMethod)) {
+            if (callableRef instanceof CallableRef_Applied) {
+                report_error(String.format("Method '%s' does not declare generic parameters", method.getName()), node);
                 return Tab.noType;
             }
             if (!isCallableWith(method, argsStruct)) {
@@ -1329,29 +1330,104 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return method.getType();
         }
 
-        if (!(method instanceof GenericMethodObj genericMethod)) {
-            report_error(String.format("Method '%s' does not declare generic parameters", method.getName()), node);
+        if (callableRef instanceof CallableRef_Plain && !allowInferredTypeArguments) {
+            report_error(String.format("Generic method '%s' requires explicit type arguments", method.getName()), node);
             return Tab.noType;
         }
 
-        var appliedRef = (CallableRef_Applied) callableRef;
         try {
             // Find the type arguments applied to the class or interface that declares this method (if they exist),
             // so they can be combined with the method's own type arguments
-            var methodTypeArguments = appliedRef.getTypeArgumentList().typearguments.types();
-            var ownerApplication = resolveGenericMethodOwnerApplication(genericMethod, appliedRef.getDesignator());
+            @SuppressWarnings("DataFlowIssue")
+            var callableDesignator = callableRef instanceof CallableRef_Applied applied ? applied.getDesignator() : ((CallableRef_Plain) callableRef).getDesignator();
+            var ownerApplication = resolveGenericMethodOwnerApplication(genericMethod, callableDesignator);
             var ownerTypeArguments = ownerApplication == null ? List.<Struct>of() : ownerApplication.getTypeArguments();
             var ownerSubstitution = ownerApplication == null ? Map.<GenericParameterStruct, Struct>of() : ownerApplication.getSubstitution();
+            var methodTypeArguments = callableRef instanceof CallableRef_Applied appliedRef
+                    ? appliedRef.getTypeArgumentList().typearguments.types()
+                    : inferMethodTypeArguments(genericMethod, argsStruct, ownerSubstitution);
             var substitution = genericMethod.validateAndCreateSubstitution(methodTypeArguments, ownerSubstitution);
             if (!isCallableWith(genericMethod, argsStruct, substitution)) {
                 reportCallParameterMismatch(method, node);
                 return Tab.noType;
             }
-            monomorphizationPlanner.registerMethodUse(appliedRef, genericMethod, ownerTypeArguments, methodTypeArguments, getEnclosingGenericDeclaration());
+            monomorphizationPlanner.registerMethodUse(callableRef, genericMethod, ownerTypeArguments, methodTypeArguments, getEnclosingGenericDeclaration());
             return GenericTypeUtils.substituteType(genericMethod.getType(), substitution);
         } catch (IllegalArgumentException exception) {
             report_error(exception.getMessage(), node);
             return Tab.noType;
+        }
+    }
+
+    // TODO: Support inference based on the return type
+    private static List<Struct> inferMethodTypeArguments(GenericMethodObj method, Struct argsStruct,
+                                                          Map<GenericParameterStruct, Struct> ownerSubstitution) {
+        var formalParameters = getExplicitParameterTypes(method);
+        var actualArguments = argsStruct.getImplementedInterfaces().toArray(Struct[]::new);
+        if (formalParameters.size() != actualArguments.length) {
+            throw new IllegalArgumentException(String.format(
+                    "The number of arguments passed to method '%s' does not match the number of its parameters",
+                    method.getName()));
+        }
+
+        var methodTypeParameters = new IdentityHashMap<GenericParameterStruct, String>();
+        for (var parameter : method.getTypeParameters()) {
+            methodTypeParameters.put((GenericParameterStruct) parameter.getType(), parameter.getName());
+        }
+
+        // After collecting all the necessary information, we try inferring parameters one by one
+        var inferredArguments = new IdentityHashMap<GenericParameterStruct, Struct>();
+        for (var index = 0; index < formalParameters.size(); index++) {
+            var formalType = GenericTypeUtils.substituteType(formalParameters.get(index), ownerSubstitution);
+            inferTypeArguments(formalType, actualArguments[index], methodTypeParameters, inferredArguments);
+        }
+
+        // Check if all parameters were inferred
+        var result = new ArrayList<Struct>(method.getTypeParameterCount());
+        for (var parameter : method.getTypeParameters()) {
+            var parameterType = (GenericParameterStruct) parameter.getType();
+            var inferredType = inferredArguments.get(parameterType);
+            if (inferredType == null) {
+                throw new IllegalArgumentException(String.format(
+                        "Cannot infer type argument '%s' for generic method '%s'", parameter.getName(), method.getName()));
+            }
+            result.add(inferredType);
+        }
+        return result;
+    }
+
+    private static void inferTypeArguments(Struct formalType, Struct actualType, Map<GenericParameterStruct, String> methodTypeParameters,
+                                           Map<GenericParameterStruct, Struct> inferredArguments) {
+        // Simple case, a parameter type is one of the method type parameters
+        if (formalType instanceof GenericParameterStruct parameter && methodTypeParameters.containsKey(parameter)) {
+            var previous = inferredArguments.putIfAbsent(parameter, actualType);
+            if (previous != null && !TabUtils.equals(previous, actualType)) {
+                var commonType = TabUtils.findCommonType(previous, actualType);
+                if (commonType == null) {
+                    throw new IllegalArgumentException(String.format(
+                            "Cannot infer type argument for generic parameter '%s' because it is matched by incompatible types",
+                            methodTypeParameters.get(parameter)));
+                }
+                inferredArguments.put(parameter, commonType);
+            }
+            return;
+        }
+
+        if (formalType.getKind() == Struct.Array) {
+            if (actualType.getKind() == Struct.Array) {
+                inferTypeArguments(formalType.getElemType(), actualType.getElemType(), methodTypeParameters, inferredArguments);
+            }
+            // A non-array argument type is not valid, but we won't report error here - it will be handled in 'isCallableWith'
+            return;
+        }
+
+        // This handles a more complex case where the type argument is nested inside generic type application, for example, 'T' in 'Box<T>'
+        if (formalType instanceof GenericTypeApplicationStruct formalApplication) {
+            var actualApplication = GenericTypeUtils.findGenericTypeApplication(actualType, formalApplication.getDeclaration());
+            if (actualApplication == null) return;
+            for (var index = 0; index < formalApplication.getTypeArguments().size(); index++) {
+                inferTypeArguments(formalApplication.getTypeArguments().get(index), actualApplication.getTypeArguments().get(index), methodTypeParameters, inferredArguments);
+            }
         }
     }
 

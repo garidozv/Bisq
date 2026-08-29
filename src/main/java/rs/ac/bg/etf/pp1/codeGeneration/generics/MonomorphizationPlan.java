@@ -1,6 +1,6 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
-import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.CallableRef;
 import rs.ac.bg.etf.pp1.ast.ExtendedTypeName_Valid;
 import rs.ac.bg.etf.pp1.ast.Factor_NewObject;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
@@ -43,7 +43,7 @@ public final class MonomorphizationPlan {
         return typeSpecializationsByDeclaration.getOrDefault(declaration, List.of());
     }
 
-    public GenericMethodSpecialization getTargetSpecialization(CallableRef_Applied call, GenericSpecialization<?> caller) {
+    public GenericMethodSpecialization getTargetSpecialization(CallableRef call, GenericSpecialization<?> caller) {
         return (GenericMethodSpecialization) getTargetSpecialization((SyntaxNode) call, caller);
     }
 

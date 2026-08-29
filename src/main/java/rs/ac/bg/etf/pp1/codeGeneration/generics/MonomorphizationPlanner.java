@@ -1,6 +1,6 @@
 package rs.ac.bg.etf.pp1.codeGeneration.generics;
 
-import rs.ac.bg.etf.pp1.ast.CallableRef_Applied;
+import rs.ac.bg.etf.pp1.ast.CallableRef;
 import rs.ac.bg.etf.pp1.ast.SyntaxNode;
 import rs.ac.bg.etf.pp1.symbolTable.TabUtils;
 import rs.ac.bg.etf.pp1.symbolTable.generics.GenericMethodObj;
@@ -22,7 +22,7 @@ public class MonomorphizationPlanner {
     private final List<GenericUse> rootUses = new ArrayList<>();
     private final IdentityHashMap<Obj, List<GenericMethodObj>> genericMethodsByClass = new IdentityHashMap<>();
 
-    public void registerMethodUse(CallableRef_Applied call, GenericMethodObj declaration, List<Struct> ownerTypeArguments,
+    public void registerMethodUse(CallableRef call, GenericMethodObj declaration, List<Struct> ownerTypeArguments,
                                   List<Struct> typeArguments, GenericObj enclosingDeclaration) {
         registerUse(new GenericMethodUse(call, declaration, ownerTypeArguments, typeArguments), enclosingDeclaration);
     }
@@ -288,7 +288,7 @@ public class MonomorphizationPlanner {
         SyntaxNode node();
     }
 
-    private record GenericMethodUse(CallableRef_Applied node, GenericMethodObj declaration,
+    private record GenericMethodUse(CallableRef node, GenericMethodObj declaration,
                                     List<Struct> ownerTypeArguments, List<Struct> methodTypeArguments) implements GenericUse {
     }
 

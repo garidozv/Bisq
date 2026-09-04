@@ -58,22 +58,22 @@ class ProviderImplementation extends ProviderBase {
         second = new Right();
 
         base = new Base<Left, Right>();
-        print(base.value::<Pair<Left, Right>, Right>(first, second));
+        print(base.<Pair<Left, Right>, Right>value(first, second));
 
         base = new Derived<Left, Right>();
-        print(base.value::<Pair<Left, Right>, Right>(first, second));
+        print(base.<Pair<Left, Right>, Right>value(first, second));
 
         base = new Leaf();
-        print(base.value::<Pair<Left, Right>, Right>(first, second));
+        print(base.<Pair<Left, Right>, Right>value(first, second));
 
         provider = new DefaultProvider();
-        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+        print(provider.<Pair<Left, Right>, Right>kind(first, second));
 
         provider = new ProviderBase();
-        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+        print(provider.<Pair<Left, Right>, Right>kind(first, second));
 
         provider = new ProviderImplementation();
-        print(provider.kind::<Pair<Left, Right>, Right>(first, second));
+        print(provider.<Pair<Left, Right>, Right>kind(first, second));
         print(eol);
     }
 }

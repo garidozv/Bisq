@@ -43,18 +43,18 @@ class Derived extends Base {}
 
     void main() int number; char letter; int numbers[]; char letters[]; Derived object; Base baseValues[]; {
         number = identity(3);
-        letter = identity::<char>('A');
+        letter = <char>identity('A');
         numbers = singleton(7);
-        letters = singleton::<char>('Z');
+        letters = <char>singleton('Z');
 
         print(number);
         print(letter);
         print(numbers[0]);
         print(letters[0]);
-        print(forward::<int>(9));
+        print(<int>forward(9));
         object = new Derived();
         object.value = 4;
-        print(readValue::<Derived>(object));
+        print(<Derived>readValue(object));
         print(eol);
 
         baseValues = new Derived[2];
@@ -64,9 +64,9 @@ class Derived extends Base {}
         baseValues[1].value = 2;
 
         for (number = 0; number < 2; number++) {
-            printMe::<Base>(baseValues[number]);
+            <Base>printMe(baseValues[number]);
         }
 
-        print(identity::<int> map numbers);
+        print(<int>identity map numbers);
     }
 }

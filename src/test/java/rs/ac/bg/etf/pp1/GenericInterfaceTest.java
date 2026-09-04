@@ -35,7 +35,7 @@ class GenericInterfaceTest extends CompilerTestBase {
                     void main() Mapper<int> mapper; MapperImplementation<int> implementation; Base result; {
                         implementation = new MapperImplementation<int>();
                         mapper = implementation;
-                        result = mapper.transform::<Base>(1, new Base());
+                        result = mapper.<Base>transform(1, new Base());
                     }
                 }
                 """);

@@ -56,8 +56,7 @@ terminal
 	PROGRAM, DOT, LBRACK, RBRACK, INTERFACE, RPAREN, IF, CLASS, BREAK, ELSE, 
 	GT, NEW, RBRACE, LT, GE, CONTINUE, MAP, DEC, MUL, LE, CONST,
 	PRINT, LPAREN, READ, NE, ADD, SUB, INC, LBRACE, DIV, OR, AND, RETURN,
-	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK, FOR,
-	TURBOFISH;
+	EQ, EQUAL, VOID, MOD, UNION, DO, COMMA, WHILE, SEMI, EXTENDS, COL, QMARK, FOR;
 	
 terminal String IDENT;
 terminal String STRING;
@@ -349,7 +348,9 @@ ActPars ::=	(ActPars_Expr) Expr
 
 CallableRef ::=	(CallableRef_Plain) Designator
 				|
-				(CallableRef_Applied) Designator TURBOFISH TypeArgumentList GT
+				(CallableRef_Applied) LT TypeArgumentList GT Designator
+				|
+				(CallableRef_MemberApplied) Designator DOT LT TypeArgumentList GT IDENT
 				;
 			
 

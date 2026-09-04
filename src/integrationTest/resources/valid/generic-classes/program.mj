@@ -56,7 +56,7 @@ class Empty<T> {}
         print(letters.get());
         print(values[0]);
         print(wrapper.fetch());
-        numbers = makeBox::<int>(11);
+        numbers = <int>makeBox(11);
         print(numbers.get());
         print(eol);
     }

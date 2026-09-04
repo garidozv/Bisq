@@ -514,7 +514,6 @@ public class CodeGenerator extends VisitorAdaptor {
 
     @Override
     public void visit(ExprNonTern_Map expr) {
-        var methodDesignator = getCallableDesignator(expr.getCallableRef());
         var methodObj = resolveCallable(expr.getCallableRef());
         // Create dummy objects for global temporary variables that are used
         var arr = TabUtils.createDummyObj(Obj.Var, 0, true);
@@ -538,7 +537,7 @@ public class CodeGenerator extends VisitorAdaptor {
 
         if (methodObj.getFpPos() != MethodTypes.GLOBAL.value) {
             // Generate the object address for 'this' parameter
-            methodDesignator.traverseBottomUp(this);
+            generateCallReceiverAddress(expr.getCallableRef());
         }
 
         // Load the method argument 'arr[i]'
@@ -601,6 +600,11 @@ public class CodeGenerator extends VisitorAdaptor {
                 Code.load(memberDesignatorObj);
             }
         }
+    }
+
+    @Override
+    public void visit(CallableRef_MemberApplied callableRef) {
+        loadReceiverAddress(callableRef);
     }
 
     @Override
@@ -966,6 +970,20 @@ public class CodeGenerator extends VisitorAdaptor {
         breakJumpsStack.peek().add(Code.pc - 2);
     }
 
+    private void loadReceiverAddress(CallableRef_MemberApplied callableRef) {
+        var receiver = resolveObject(callableRef.getDesignator().obj);
+        if (!receiver.getName().equals(THIS_VARIABLE_NAME)) Code.load(receiver);
+    }
+
+    private void generateCallReceiverAddress(CallableRef callableRef) {
+        if (callableRef instanceof CallableRef_MemberApplied memberCall) {
+            memberCall.getDesignator().traverseBottomUp(this);
+            loadReceiverAddress(memberCall);
+        } else {
+            getCallableDesignator(callableRef).traverseBottomUp(this);
+        }
+    }
+
     private Struct resolveType(Struct type) {
         return currentSpecialization == null ? type : currentSpecialization.resolveType(type);
     }
@@ -1011,7 +1029,6 @@ public class CodeGenerator extends VisitorAdaptor {
     }
 
     private void generateMethodCall(CallableRef callableRef) {
-        var designator = getCallableDesignator(callableRef);
         var methodObj = resolveCallable(callableRef);
 
         if (methodObj.getFpPos() == MethodTypes.GLOBAL.value) {
@@ -1023,7 +1040,7 @@ public class CodeGenerator extends VisitorAdaptor {
              * Object address is buried on the expression stack under the method arguments,
              * So there is no way to retrieve it other than generating the code to retrieve it again
              */
-            designator.traverseBottomUp(this);
+            generateCallReceiverAddress(callableRef);
 
             Code.put(Code.getfield);
             Code.put2(0);

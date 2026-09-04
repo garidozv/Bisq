@@ -23,11 +23,11 @@ class PairBox<T extends LeftBase, U extends RightBase> {
         }
 
         <V> V forward(V value) {
-            return this.echo::<V>(value);
+            return this.<V>echo(value);
         }
 
         int callFromOrdinaryMethod(int value) {
-            return this.echo::<int>(value);
+            return this.<int>echo(value);
         }
 
         <V> V unused(V value) {
@@ -71,19 +71,19 @@ class Provider extends EchoProvider<char> {}
         left.value = 2;
         right.value = 3;
 
-        owner = box.choose::<Left, Right>(owner, left, right);
-        number = box.echo::<int>(7);
-        letter = box.echo::<char>('A');
+        owner = box.<Left, Right>choose(owner, left, right);
+        number = box.<int>echo(7);
+        letter = box.<char>echo('A');
 
         print(owner.value);
         print(number);
         print(letter);
-        print(ordinary.echo::<int>(9));
-        print(box.forward::<int>(8));
-        print(derivedOrdinary.echo::<int>(4));
-        print(derivedPair.echo::<int>(5));
+        print(ordinary.<int>echo(9));
+        print(box.<int>forward(8));
+        print(derivedOrdinary.<int>echo(4));
+        print(derivedPair.<int>echo(5));
         print(box.callFromOrdinaryMethod(2));
-        print(provider.interfaceEcho::<int>('B', 0));
+        print(provider.<int>interfaceEcho('B', 0));
         print(eol);
     }
 }

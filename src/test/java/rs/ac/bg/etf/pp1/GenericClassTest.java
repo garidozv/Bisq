@@ -46,7 +46,7 @@ class GenericClassTest extends CompilerTestBase {
                         second = new Box<int>();
                         letters = new Box<char>();
                         wrapper = new Wrapper<int>();
-                        first = create::<int>();
+                        first = <int>create();
                     }
                 }
                 """);

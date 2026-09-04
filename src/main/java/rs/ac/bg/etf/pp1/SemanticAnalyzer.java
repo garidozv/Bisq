@@ -751,60 +751,61 @@ public class SemanticAnalyzer extends VisitorAdaptor {
 
     @Override
     public void visit(Designator_MemberAccess designator) {
-        var currentObj = designator.getDesignator().obj;
-        var objectName = designator.getI2();
+        designator.obj = findMember(designator.getDesignator().obj, designator.getI2(), designator);
+    }
+
+    private Obj findMember(Obj currentObj, String objectName, SyntaxNode node) {
+        if (currentObj == Tab.noObj) return Tab.noObj;
+
         var currentObjType = currentObj.getType();
         var lookupType = currentObjType instanceof GenericParameterStruct parameter
                 ? parameter.getConstraint()
                 : currentObjType;
 
-        if (currentObj == Tab.noObj) {
-            designator.obj = Tab.noObj;
-        } else if (currentObj.getKind() != Obj.Elem && currentObj.getKind() != Obj.Fld &&
+        if (currentObj.getKind() != Obj.Elem && currentObj.getKind() != Obj.Fld &&
                 currentObj.getKind() != Obj.Var && currentObj.getKind() != Obj.Meth ||
                 lookupType == null || // No constraint - don't allow any member access
                 (lookupType.getKind() != Struct.Class &&
                         lookupType.getKind() != Struct.Interface)) {
-            report_error(String.format("Access to a member '%s' of a non-complex type", designator.getI2()), designator);
-            designator.obj = Tab.noObj;
-        } else {
-            Obj memberObj;
-
-            // If the current lookup type is a generic type
-            var receiverTypeApplication = lookupType instanceof GenericTypeApplicationStruct application
-                    ? application
-                    : null;
-
-            var currentOwner = currentClass != null ? currentClass : currentInterface;
-            var memberBelongsToCurrentType = currentOwner != null &&
-                    (lookupType == currentOwner.getType() || receiverTypeApplication != null && receiverTypeApplication.getDeclaration() == currentOwner);
-            if (currentObj.getName().equals(THIS_VARIABLE_NAME) || memberBelongsToCurrentType) {
-                /*
-                 * If accessing a member of the class or interface currently being declared, we cannot use its type
-                 * since it is not completed yet (scope is still open, and members have not been set).
-                 * So we need to access the owner scope, which is one scope up, as we are currently in the method scope.
-                 */
-                memberObj = Tab.currentScope.getOuter().findSymbol(objectName);
-            } else if (receiverTypeApplication != null) {
-                memberObj = receiverTypeApplication.findMember(objectName);
-            } else {
-                memberObj = lookupType.getMembersTable().searchKey(objectName);
-            }
-
-            // Members found in the open type scope still use declaration types, so resolve them based on this receiver's application.
-            // For example, if we are inside class Node<T>, and it has fields A of type T and B of type Node<T[]>. If we try accessing
-            // B and getting its A field, it will no longer be just T, but T[]. This is why we have to perform substitution.
-            if (memberObj != null && receiverTypeApplication != null && memberBelongsToCurrentType) {
-                memberObj = receiverTypeApplication.resolveMember(memberObj);
-            }
-
-            if (memberObj == null || memberObj.getKind() != Obj.Fld && memberObj.getKind() != Obj.Meth) {
-                report_error(String.format("Access to an undefined class member '%s'", objectName), designator);
-                designator.obj = Tab.noObj;
-            } else {
-                designator.obj = memberObj;
-            }
+            report_error(String.format("Access to a member '%s' of a non-complex type", objectName), node);
+            return Tab.noObj;
         }
+
+        Obj memberObj;
+
+        // If the current lookup type is a generic type
+        var receiverTypeApplication = lookupType instanceof GenericTypeApplicationStruct application
+                ? application
+                : null;
+
+        var currentOwner = currentClass != null ? currentClass : currentInterface;
+        var memberBelongsToCurrentType = currentOwner != null &&
+                (lookupType == currentOwner.getType() || receiverTypeApplication != null && receiverTypeApplication.getDeclaration() == currentOwner);
+        if (currentObj.getName().equals(THIS_VARIABLE_NAME) || memberBelongsToCurrentType) {
+            /*
+             * If accessing a member of the class or interface currently being declared, we cannot use its type
+             * since it is not completed yet (scope is still open, and members have not been set).
+             * So we need to access the owner scope, which is one scope up, as we are currently in the method scope.
+             */
+            memberObj = Tab.currentScope.getOuter().findSymbol(objectName);
+        } else if (receiverTypeApplication != null) {
+            memberObj = receiverTypeApplication.findMember(objectName);
+        } else {
+            memberObj = lookupType.getMembersTable().searchKey(objectName);
+        }
+
+        // Members found in the open type scope still use declaration types, so resolve them based on this receiver's application.
+        // For example, if we are inside class Node<T>, and it has fields A of type T and B of type Node<T[]>. If we try accessing
+        // B and getting its A field, it will no longer be just T, but T[]. This is why we have to perform substitution.
+        if (memberObj != null && receiverTypeApplication != null && memberBelongsToCurrentType) {
+            memberObj = receiverTypeApplication.resolveMember(memberObj);
+        }
+
+        if (memberObj == null || memberObj.getKind() != Obj.Fld && memberObj.getKind() != Obj.Meth) {
+            report_error(String.format("Access to an undefined class member '%s'", objectName), node);
+            return Tab.noObj;
+        }
+        return memberObj;
     }
 
     @Override
@@ -858,6 +859,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
     @Override
     public void visit(CallableRef_Applied callableRef) {
         callableRef.obj = callableRef.getDesignator().obj;
+    }
+
+    @Override
+    public void visit(CallableRef_MemberApplied callableRef) {
+        callableRef.obj = findMember(callableRef.getDesignator().obj, callableRef.getI3(), callableRef);
     }
 
     @Override
@@ -1318,8 +1324,13 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return Tab.noType;
         }
 
+        var explicitTypeArguments = switch (callableRef) {
+            case CallableRef_Applied ref -> ref.getTypeArgumentList();
+            case CallableRef_MemberApplied ref -> ref.getTypeArgumentList();
+            default -> null;
+        };
         if (!(method instanceof GenericMethodObj genericMethod)) {
-            if (callableRef instanceof CallableRef_Applied) {
+            if (explicitTypeArguments != null) {
                 report_error(String.format("Method '%s' does not declare generic parameters", method.getName()), node);
                 return Tab.noType;
             }
@@ -1330,7 +1341,7 @@ public class SemanticAnalyzer extends VisitorAdaptor {
             return method.getType();
         }
 
-        if (callableRef instanceof CallableRef_Plain && !allowInferredTypeArguments) {
+        if (explicitTypeArguments == null && !allowInferredTypeArguments) {
             report_error(String.format("Generic method '%s' requires explicit type arguments", method.getName()), node);
             return Tab.noType;
         }
@@ -1338,13 +1349,11 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         try {
             // Find the type arguments applied to the class or interface that declares this method (if they exist),
             // so they can be combined with the method's own type arguments
-            @SuppressWarnings("DataFlowIssue")
-            var callableDesignator = callableRef instanceof CallableRef_Applied applied ? applied.getDesignator() : ((CallableRef_Plain) callableRef).getDesignator();
-            var ownerApplication = resolveGenericMethodOwnerApplication(genericMethod, callableDesignator);
+            var ownerApplication = resolveGenericMethodOwnerApplication(genericMethod, callableRef);
             var ownerTypeArguments = ownerApplication == null ? List.<Struct>of() : ownerApplication.getTypeArguments();
             var ownerSubstitution = ownerApplication == null ? Map.<GenericParameterStruct, Struct>of() : ownerApplication.getSubstitution();
-            var methodTypeArguments = callableRef instanceof CallableRef_Applied appliedRef
-                    ? appliedRef.getTypeArgumentList().typearguments.types()
+            var methodTypeArguments = explicitTypeArguments != null
+                    ? explicitTypeArguments.typearguments.types()
                     : inferMethodTypeArguments(genericMethod, argsStruct, ownerSubstitution);
             var substitution = genericMethod.validateAndCreateSubstitution(methodTypeArguments, ownerSubstitution);
             if (!isCallableWith(genericMethod, argsStruct, substitution)) {
@@ -1447,21 +1456,28 @@ public class SemanticAnalyzer extends VisitorAdaptor {
         return genericParameter != null ? genericParameter : Tab.find(name);
     }
 
-    private GenericTypeApplicationStruct resolveGenericMethodOwnerApplication(GenericMethodObj method, Designator designator) {
+    private GenericTypeApplicationStruct resolveGenericMethodOwnerApplication(GenericMethodObj method, CallableRef callableRef) {
         if (!(method.getOwner() instanceof GenericTypeObj genericOwner))
             return null;
 
         Struct receiverType;
-        if (designator instanceof Designator_MemberAccess memberAccess) {
-            receiverType = memberAccess.getDesignator().obj.getType();
+        if (callableRef instanceof CallableRef_MemberApplied memberCall) {
+            receiverType = memberCall.getDesignator().obj.getType();
         } else {
-            var currentOwner = currentClass != null ? currentClass : currentInterface;
-            if (currentOwner instanceof GenericTypeObj currentGenericOwner) {
-                receiverType = GenericTypeUtils.createOpenApplication(currentGenericOwner);
-            } else if (currentOwner != null) {
-                receiverType = currentOwner.getType();
+            var designator = callableRef instanceof CallableRef_Applied applied
+                    ? applied.getDesignator()
+                    : ((CallableRef_Plain) callableRef).getDesignator();
+            if (designator instanceof Designator_MemberAccess memberAccess) {
+                receiverType = memberAccess.getDesignator().obj.getType();
             } else {
-                throw new IllegalArgumentException("A generic member method requires a receiver");
+                var currentOwner = currentClass != null ? currentClass : currentInterface;
+                if (currentOwner instanceof GenericTypeObj currentGenericOwner) {
+                    receiverType = GenericTypeUtils.createOpenApplication(currentGenericOwner);
+                } else if (currentOwner != null) {
+                    receiverType = currentOwner.getType();
+                } else {
+                    throw new IllegalArgumentException("A generic member method requires a receiver");
+                }
             }
         }
 

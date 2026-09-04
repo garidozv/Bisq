@@ -114,7 +114,7 @@ class GenericMethodTest extends CompilerTestBase {
                 {
                     void main() Box<int> box; int number; {
                         box = new Box<int>();
-                        number = box.choose::<char>(3, 'a');
+                        number = box.<char>choose(3, 'a');
                     }
                 }
                 """);
@@ -137,13 +137,13 @@ class GenericMethodTest extends CompilerTestBase {
                 class Box<T> {
                     {
                         <U> U echo(U value) { return value; }
-                        <V> V forward(V value) { return this.echo::<V>(value); }
+                        <V> V forward(V value) { return this.<V>echo(value); }
                     }
                 }
                 {
                     void main() Box<int> box; int value; {
                         box = new Box<int>();
-                        value = box.forward::<int>(7);
+                        value = box.<int>forward(7);
                     }
                 }
                 """);
@@ -259,7 +259,7 @@ class GenericMethodTest extends CompilerTestBase {
                 {
                     void main() Base<int[]> value; int ownerValues[]; {
                         value = new Derived<int>();
-                        print(value.value::<char>(ownerValues, 'a'));
+                        print(value.<char>value(ownerValues, 'a'));
                     }
                 }
                 """);
@@ -293,7 +293,7 @@ class GenericMethodTest extends CompilerTestBase {
                 {
                     void main() Base object; {
                         object = new Derived();
-                        print(object.value::<int>(1));
+                        print(object.<int>value(1));
                     }
                 }
                 """);
@@ -320,19 +320,19 @@ class GenericMethodTest extends CompilerTestBase {
                 class Middle extends Base {
                     {
                         <T> int helper(T argument) { return 2; }
-                        <T> int value(T argument) { return this.helper::<T>(argument); }
+                        <T> int value(T argument) { return this.<T>helper(argument); }
                     }
                 }
                 class Leaf extends Middle {
                     {
                         <T> int helper(T argument) { return 3; }
-                        <T> int value(T argument) { return this.helper::<T>(argument); }
+                        <T> int value(T argument) { return this.<T>helper(argument); }
                     }
                 }
                 {
                     void main() Base object; {
                         object = new Leaf();
-                        print(object.value::<int>(1));
+                        print(object.<int>value(1));
                     }
                 }
                 """);
@@ -365,7 +365,7 @@ class GenericMethodTest extends CompilerTestBase {
                 {
                     void main() Box<int> box; Holder<int> value; {
                         box = new Box<int>();
-                        value = box.keep::<Holder<int>>(value);
+                        value = box.<Holder<int>>keep(value);
                     }
                 }
                 """);
@@ -383,7 +383,7 @@ class GenericMethodTest extends CompilerTestBase {
                 {
                     void main() Box<char> box; Holder<int> value; {
                         box = new Box<char>();
-                        value = box.keep::<Holder<int>>(value);
+                        value = box.<Holder<int>>keep(value);
                     }
                 }
                 """);
@@ -435,15 +435,15 @@ class GenericMethodTest extends CompilerTestBase {
                     <E> E[] identityArray(E[] value) { return value; }
 
                     <D> D forward(D value) {
-                        return identity::<D>(value);
+                        return <D>identity(value);
                     }
 
                     <U> void consume(U value) {}
 
                     void main() int result; int values[]; {
-                        result = identity::<int>(3);
-                        values = identityArray::<int>(values);
-                        consume::<char>('a');
+                        result = <int>identity(3);
+                        values = <int>identityArray(values);
+                        <char>consume('a');
                     }
                 }
                 """);
@@ -607,15 +607,15 @@ class GenericMethodTest extends CompilerTestBase {
                     <T> T identity(T value) { return value; }
 
                     <U> U forward(U value) {
-                        return identity::<U>(value);
+                        return <U>identity(value);
                     }
 
                     <V> V unused(V value) { return value; }
 
                     void main() int number; char letter; {
-                        number = identity::<int>(1);
-                        letter = identity::<char>('a');
-                        number = forward::<int>(2);
+                        number = <int>identity(1);
+                        letter = <char>identity('a');
+                        number = <int>forward(2);
                     }
                 }
                 """);
@@ -649,11 +649,11 @@ class GenericMethodTest extends CompilerTestBase {
                     <T extends Base> T requireBase(T value) { return value; }
 
                     <D extends Derived> D forward(D value) {
-                        return requireBase::<D>(value);
+                        return <D>requireBase(value);
                     }
 
                     void main() Derived value; {
-                        value = requireBase::<Derived>(value);
+                        value = <Derived>requireBase(value);
                     }
                 }
                 """);
@@ -668,7 +668,7 @@ class GenericMethodTest extends CompilerTestBase {
                     <T extends Derived> T requireDerived(T value) { return value; }
 
                     <D extends Base> D invalid(D value) {
-                        return requireDerived::<D>(value);
+                        return <D>requireDerived(value);
                     }
                     void main() {}
                 }
@@ -685,21 +685,21 @@ class GenericMethodTest extends CompilerTestBase {
         assertFalse(analyze("""
                 program OrdinaryApplication {
                     int identity(int value) { return value; }
-                    void main() int result; { result = identity::<int>(3); }
+                    void main() int result; { result = <int>identity(3); }
                 }
                 """).analyzer().passed());
 
         assertFalse(analyze("""
                 program WrongTypeArgumentCount {
                     <T> T identity(T value) { return value; }
-                    void main() int result; { result = identity::<int, char>(3); }
+                    void main() int result; { result = <int, char>identity(3); }
                 }
                 """).analyzer().passed());
 
         assertFalse(analyze("""
                 program WrongValueArgument {
                     <T> T identity(T value) { return value; }
-                    void main() int result; { result = identity::<int>('a'); }
+                    void main() int result; { result = <int>identity('a'); }
                 }
                 """).analyzer().passed());
 
@@ -708,7 +708,7 @@ class GenericMethodTest extends CompilerTestBase {
                 class Base {}
                 {
                     <T extends Base> T requireBase(T value) { return value; }
-                    void main() { requireBase::<char>('a'); }
+                    void main() { <char>requireBase('a'); }
                 }
                 """).analyzer().passed());
     }
@@ -790,7 +790,7 @@ class GenericMethodTest extends CompilerTestBase {
                     }
 
                     void main() {
-                        allocate::<set>();
+                        <set>allocate();
                     }
                 }
                 """).analyzer().passed());
@@ -800,11 +800,11 @@ class GenericMethodTest extends CompilerTestBase {
                     <T> void consume() {}
 
                     <U> void relay() {
-                        consume::<U[]>();
+                        <U[]>consume();
                     }
 
                     void main() {
-                        relay::<set>();
+                        <set>relay();
                     }
                 }
                 """).analyzer().passed());
@@ -836,8 +836,8 @@ class GenericMethodTest extends CompilerTestBase {
                     }
 
                     void main() set value; {
-                        value = identity::<set>(value);
-                        compare::<set>(value, value);
+                        value = <set>identity(value);
+                        <set>compare(value, value);
                     }
                 }
                 """);

@@ -70,7 +70,6 @@ import java_cup.runtime.Symbol;
 
 // Operators
 
-"::<" 		{ return new_symbol(sym.TURBOFISH, yytext()); }
 "+" 		{ return new_symbol(sym.ADD, 	yytext()); }
 "-" 		{ return new_symbol(sym.SUB, 	yytext()); }
 "*" 		{ return new_symbol(sym.MUL, 	yytext()); }

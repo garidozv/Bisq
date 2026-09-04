@@ -102,7 +102,7 @@ void main() int arr[]; Movable m; set s; {
 
 The language supports generic classes, interfaces, global methods, and member methods.  </br>
 Generic parameters are declared between angle brackets `<>`, and they have to be placed after the type name or before the return type in the case of methods. <br/>
-Type arguments are provided after the name, the object creation only uses the angle brackets, while method calls use the _turbofish_ operator `::<>`. <br/>
+When creating an object of a generic class, type arguments follow the class name, while explicit method type arguments are written before the method name. <br/>
 For generic method calls, type arguments can also be inferred from the types of the passed arguments, taking common base classes and implemented interfaces into account.
 
 ```java
@@ -122,7 +122,7 @@ class Wrapper<T> {
         array[1] = new Wrapper<char>();
         array[1].value = 'V';
 
-        temp = getAtIndex::<Wrapper<char>>(array, 0);
+        temp = <Wrapper<char>>getAtIndex(array, 0);
         print(temp.value);
         temp = getAtIndex(array, 1); // Type argument T is inferred as Wrapper<char>
         print(temp.value);
